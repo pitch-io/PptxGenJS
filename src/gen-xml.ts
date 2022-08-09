@@ -564,6 +564,7 @@ function slideObjectToXml(slide: PresSlide | SlideLayout): string {
 			case SLIDE_OBJECT_TYPES.image:
 				let sizing = slideItemObj.options.sizing,
 					rounding = slideItemObj.options.rounding,
+					effects = slideItemObj.options.effects,
 					width = cx,
 					height = cy
 
@@ -601,6 +602,27 @@ function slideObjectToXml(slide: PresSlide | SlideLayout): string {
 				} else {
 					strSlideXml += '<a:blip r:embed="rId' + slideItemObj.imageRid + '">'
 					strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
+
+					if (effects) {
+						strSlideXml += ' <a:extLst>'
+						strSlideXml += '  <a:ext uri="{BEBA8EAE-BF5A-486C-A8C5-ECC9F3942E4B}">'
+						strSlideXml += '   <a14:imgProps xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main">'
+						strSlideXml += '    <a14:imgLayer>'
+						strSlideXml += '     <a14:imgEffect>'
+						strSlideXml += '      <a14:colorTemperature colorTemp="' + effects.colorTemperature + '"/>'
+						strSlideXml += '     </a14:imgEffect>'
+						strSlideXml += '     <a14:imgEffect>'
+						strSlideXml += '      <a14:saturation sat="' + effects.saturation + '"/>'
+						strSlideXml += '     </a14:imgEffect>'
+						strSlideXml += '     <a14:imgEffect>'
+						strSlideXml += '      <a14:brightnessContrast bright="' + effects.brightness + '" contrast="' + effects.contrast + '" />'
+						strSlideXml += '     </a14:imgEffect>'
+						strSlideXml += '    </a14:imgLayer>'
+						strSlideXml += '   </a14:imgProps>'
+						strSlideXml += '  </a:ext>'
+						strSlideXml += ' </a:extLst>'
+					}
+
 					strSlideXml += '</a:blip>'
 				}
 				if (sizing && sizing.type) {

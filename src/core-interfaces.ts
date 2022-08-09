@@ -132,6 +132,26 @@ export interface HyperlinkProps {
 	 */
 	tooltip?: string
 }
+
+export interface ImageEffectsProps {
+	/**
+	 * @default 0
+	 */
+	brightness?: number
+	/**
+	 * @default 0
+	 */
+	colorTemperature?: number
+	/**
+	 * @default 0
+	 */
+	saturation?: number
+	/**
+	 * @default 0
+	 */
+	contrast?: number
+}
+
 // used by: chart, text, image
 export interface ShadowProps {
 	/**
@@ -543,17 +563,21 @@ export interface ImageProps extends PositionProps, DataOrPathProps, ObjectNamePr
 	 * @example 25 // 25% transparent
 	 */
 	transparency?: number
-	
-	/** 
+	/**
 	 * Shadow Props
 	 * @example { type: 'outer',
 	 *            opacity: 0.5,
-	 *            blur: 20, 
+	 *            blur: 20,
 	 *            color: '000000',
-	 *            offset: 20, 
+	 *            offset: 20,
 	 *            angle: 270 }
 	 */
-	 shadow?: ShadowProps
+	shadow?: ShadowProps
+	/**
+	 * Image Effects Props
+	 * @example { saturation: 0, colorTemperature: 1, brightness: 1.5, contrast: 1.5 }
+	 */
+	effects?: ImageEffectsProps
 }
 /**
  * Add media (audio/video) to slide
