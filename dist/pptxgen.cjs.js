@@ -1,4 +1,4 @@
-/* PptxGenJS 3.11.0-beta @ 2022-09-12T16:11:36.295Z */
+/* PptxGenJS 3.11.0-beta @ 2022-09-20T13:54:11.138Z */
 'use strict';
 
 var JSZip = require('jszip');
@@ -2205,6 +2205,7 @@ function addMediaDefinition(target, opt) {
     var strPath = opt.path || '';
     var strType = opt.type || 'audio';
     var strExtn = '';
+    var coverExtn = "png";
     var strCover = opt.cover || IMG_PLAYBTN;
     var objectName = opt.objectName ? encodeXmlEntities(opt.objectName) : "Media ".concat(target._slideObjects.filter(function (obj) { return obj._type === SLIDE_OBJECT_TYPES.media; }).length);
     var slideData = { _type: SLIDE_OBJECT_TYPES.media };
@@ -2256,12 +2257,12 @@ function addMediaDefinition(target, opt) {
         slideData.mediaRid = relId1;
         // B: Add cover (preview/overlay) image
         target._relsMedia.push({
-            path: 'preencoded.png',
+            path: strCover,
             data: strCover,
-            type: 'image/png',
-            extn: 'png',
+            type: 'image/' + coverExtn,
+            extn: coverExtn,
             rId: getNewRelId(target),
-            Target: '../media/image-' + target._slideNum + '-' + (target._relsMedia.length + 1) + '.png',
+            Target: '../media/image-' + target._slideNum + '-' + (target._relsMedia.length + 1) + '.' + coverExtn,
         });
     }
     else {

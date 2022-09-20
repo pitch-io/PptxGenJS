@@ -527,6 +527,7 @@ export function addMediaDefinition(target: PresSlide, opt: MediaProps) {
 	let strPath = opt.path || ''
 	let strType = opt.type || 'audio'
 	let strExtn = ''
+	let coverExtn = "png"
 	let strCover = opt.cover || IMG_PLAYBTN
 	let objectName = opt.objectName ? encodeXmlEntities(opt.objectName) : `Media ${target._slideObjects.filter(obj => obj._type === SLIDE_OBJECT_TYPES.media).length}`
 	let slideData: ISlideObject = { _type: SLIDE_OBJECT_TYPES.media }
@@ -583,12 +584,12 @@ export function addMediaDefinition(target: PresSlide, opt: MediaProps) {
 
 		// B: Add cover (preview/overlay) image
 		target._relsMedia.push({
-			path: 'preencoded.png',
+			path: strCover,
 			data: strCover,
-			type: 'image/png',
-			extn: 'png',
+			type: 'image/' + coverExtn,
+			extn: coverExtn,
 			rId: getNewRelId(target),
-			Target: '../media/image-' + target._slideNum + '-' + (target._relsMedia.length + 1) + '.png',
+			Target: '../media/image-' + target._slideNum + '-' + (target._relsMedia.length + 1) + '.' + coverExtn,
 		})
 	} else {
 		// PERF: Duplicate media should reuse existing `Target` value and not create an additional copy
