@@ -585,8 +585,7 @@ export function addMediaDefinition(target: PresSlide, opt: MediaProps) {
 		// B: Add cover (preview/overlay) image
 		target._relsMedia.push({
 			path: strCover,
-			data: strCover,
-			type: 'image/' + coverExtn,
+			type: 'image/' + coverExtn, 
 			extn: coverExtn,
 			rId: getNewRelId(target),
 			Target: '../media/image-' + target._slideNum + '-' + (target._relsMedia.length + 1) + '.' + coverExtn,

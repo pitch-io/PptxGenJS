@@ -1,4 +1,4 @@
-/* PptxGenJS 3.11.0-beta @ 2022-09-20T13:54:11.142Z */
+/* PptxGenJS 3.11.0-beta @ 2022-09-21T08:32:22.756Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -2252,7 +2252,6 @@ function addMediaDefinition(target, opt) {
         // B: Add cover (preview/overlay) image
         target._relsMedia.push({
             path: strCover,
-            data: strCover,
             type: 'image/' + coverExtn,
             extn: coverExtn,
             rId: getNewRelId(target),
