@@ -27,14 +27,12 @@
     "express": false,
     "fs": false,
     "https": false,
-    "image-size": false,
     "os": false,
     "path": false
   },
   "dependencies": {
     "@types/node": "^17.0.21",
     "https": "^1.0.0",
-    "image-size": "^1.0.0",
     "jszip": "^3.7.1"
   },
   "devDependencies": {
