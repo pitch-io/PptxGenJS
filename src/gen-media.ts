@@ -48,7 +48,7 @@ export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Promise<s
 							reject('ERROR: Unable to read media: "' + rel.path + '"\n' + ex.toString())
 						}
 					} else if (fs && https && rel.path.indexOf('http') === 0) {
-						https.get(rel.path, (res: any) => {
+						const request = https.get(rel.path, (res: any) => {
 							let rawData = ''
 							res.setEncoding('binary') // IMPORTANT: Only binary encoding works
 							res.on('data', (chunk: string) => (rawData += chunk))
@@ -62,6 +62,13 @@ export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Promise<s
 								candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
 								reject(`ERROR! Unable to load image (https.get): ${rel.path}`)
 							})
+						})
+						// request-level errors (DNS failure, refused connection, ...) emit on the request,
+						// not the response - without this handler they crash the node process
+						request.on('error', (ex: any) => {
+							rel.data = IMG_BROKEN
+							candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
+							reject(`ERROR! Unable to load image (https.get): ${rel.path} | ex: ${ex}`)
 						})
 					} else {
 						// A: Declare XHR and onload/onerror handlers
