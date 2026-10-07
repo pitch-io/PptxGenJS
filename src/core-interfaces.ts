@@ -88,7 +88,8 @@ export type HexColor = string
 export type ThemeColor = 'tx1' | 'tx2' | 'bg1' | 'bg2' | 'accent1' | 'accent2' | 'accent3' | 'accent4' | 'accent5' | 'accent6'
 export type Color = HexColor | ThemeColor
 export type Gradient = { angle?: number; stops: GradientStops }
-export type GradientStops = { [key: number]: Color }
+export type GradientStop = Color | { color: Color; transparency?: number }
+export type GradientStops = { [key: number]: GradientStop }
 export type Margin = number | [number, number, number, number]
 export type HAlign = 'left' | 'center' | 'right' | 'justify'
 export type VAlign = 'top' | 'middle' | 'bottom'
@@ -532,6 +533,14 @@ export interface ImageProps extends PositionProps, DataOrPathProps, ObjectNamePr
 	 * @default false
 	 */
 	rounding?: boolean
+	/**
+	 * Rounded corner radius (inches), measured against the cropped size
+	 */
+	rectRadius?: number
+	/**
+	 * Image outline
+	 */
+	line?: ShapeLineProps
 	/**
 	 * Image sizing options
 	 */

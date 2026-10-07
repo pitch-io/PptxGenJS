@@ -27,6 +27,7 @@ import {
 	PresFont,
 	PresSlide,
 	ShadowProps,
+	ShapeLineProps,
 	SlideLayout,
 	SolidFillProps,
 	TableCell,
@@ -45,6 +46,16 @@ import {
 	inch2Emu,
 	valToPts,
 } from './gen-utils'
+
+function genXmlLine(line: ShapeLineProps): string {
+	let strXml = line.width ? `<a:ln w="${valToPts(line.width)}">` : '<a:ln>'
+	if (line.color) strXml += genXmlColorSelection(line)
+	if (line.dashType) strXml += `<a:prstDash val="${line.dashType}"/>`
+	if (line.beginArrowType) strXml += `<a:headEnd type="${line.beginArrowType}"/>`
+	if (line.endArrowType) strXml += `<a:tailEnd type="${line.endArrowType}"/>`
+	// FUTURE: `endArrowSize` < a: headEnd type = "arrow" w = "lg" len = "lg" /> 'sm' | 'med' | 'lg'(values are 1 - 9, making a 3x3 grid of w / len possibilities)
+	return strXml + '</a:ln>'
+}
 
 let imageSizingXml = {
 	cover: function (imgSize, boxDim) {
@@ -516,15 +527,7 @@ function slideObjectToXml(slide: PresSlide | SlideLayout): string {
 				strSlideXml += slideItemObj.options.fill ? genXmlColorSelection(slideItemObj.options.fill) : '<a:noFill/>'
 
 				// shape Type: LINE: line color
-				if (slideItemObj.options.line) {
-					strSlideXml += slideItemObj.options.line.width ? `<a:ln w="${valToPts(slideItemObj.options.line.width)}">` : '<a:ln>'
-					if (slideItemObj.options.line.color) strSlideXml += genXmlColorSelection(slideItemObj.options.line)
-					if (slideItemObj.options.line.dashType) strSlideXml += `<a:prstDash val="${slideItemObj.options.line.dashType}"/>`
-					if (slideItemObj.options.line.beginArrowType) strSlideXml += `<a:headEnd type="${slideItemObj.options.line.beginArrowType}"/>`
-					if (slideItemObj.options.line.endArrowType) strSlideXml += `<a:tailEnd type="${slideItemObj.options.line.endArrowType}"/>`
-					// FUTURE: `endArrowSize` < a: headEnd type = "arrow" w = "lg" len = "lg" /> 'sm' | 'med' | 'lg'(values are 1 - 9, making a 3x3 grid of w / len possibilities)
-					strSlideXml += '</a:ln>'
-				}
+				if (slideItemObj.options.line) strSlideXml += genXmlLine(slideItemObj.options.line)
 
 				// EFFECTS > SHADOW: REF: @see http://officeopenxml.com/drwSp-effects.php
 				if (slideItemObj.options.shadow && slideItemObj.options.shadow.type !== 'none') {
@@ -635,8 +638,16 @@ function slideObjectToXml(slide: PresSlide | SlideLayout): string {
 				strSlideXml += '  <a:off x="' + x + '" y="' + y + '"/>'
 				strSlideXml += '  <a:ext cx="' + width + '" cy="' + height + '"/>'
 				strSlideXml += ' </a:xfrm>'
-				strSlideXml += ' <a:prstGeom prst="' + (rounding ? 'ellipse' : 'rect') + '"><a:avLst/></a:prstGeom>'
+				if (rounding) {
+					strSlideXml += ' <a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
+				} else if (slideItemObj.options.rectRadius > 0) {
+					const adj = Math.min(50000, Math.round((slideItemObj.options.rectRadius * EMU * 100000) / Math.min(width, height)))
+					strSlideXml += `<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst></a:prstGeom>`
+				} else {
+					strSlideXml += ' <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+				}
 				strSlideXml += solidFillXmlString
+				if (slideItemObj.options.line) strSlideXml += genXmlLine(slideItemObj.options.line)
 
 				// EFFECTS
 				if (hasEffects) {
@@ -1047,7 +1058,7 @@ function genXmlTextRunProperties(opts: ObjectOptions | TextPropsOptions, isDefau
 
 	// BEGIN runProperties (ex: `<a:rPr lang="en-US" sz="1600" b="1" dirty="0">`)
 	runProps += '<' + runPropsTag + ' lang="' + (opts.lang ? opts.lang : 'en-US') + '"' + (opts.lang ? ' altLang="en-US"' : '')
-	runProps += opts.fontSize ? ' sz="' + Math.round(opts.fontSize) + '00"' : '' // NOTE: Use round so sizes like '7.5' wont cause corrupt pres.
+	runProps += opts.fontSize ? ' sz="' + Math.round(opts.fontSize * 100) + '"' : '' // NOTE: Use round so sizes like '7.5' wont cause corrupt pres.
 	runProps += opts.hasOwnProperty('bold') ? ` b="${opts.bold ? 1 : 0}"` : ''
 	runProps += opts.hasOwnProperty('italic') ? ` i="${opts.italic ? 1 : 0}"` : ''
 
@@ -1393,7 +1404,7 @@ export function genXmlTextBody(slideObj: ISlideObject | TableCell): string {
 			textObj.options.paraSpaceAfter = textObj.options.paraSpaceAfter || opts.paraSpaceAfter
 			paragraphPropXml = genXmlParagraphProperties(textObj, false)
 
-			strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', '') // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
+			if (idx === 0) strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', '') // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
 			// C: Inherit any main options (color, fontSize, etc.)
 			// NOTE: We only pass the text.options to genXmlTextRun (not the Slide.options),
 			// so the run building function cant just fallback to Slide.color, therefore, we need to do that here before passing options below.

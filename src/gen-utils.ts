@@ -245,7 +245,17 @@ function createGradientElements(gradient: Gradient, internalElements: string): s
  */
 function createGradientList(stops: GradientStops, internalElements: string): string {
 	const multiplier = 1000
-	const res = Object.keys(stops).map(pos => `<a:gs pos="${Number(pos) * multiplier}">${createColorElement(stops[pos], internalElements)}</a:gs>`)
+	const res = Object.keys(stops).map(pos => {
+		const stop = stops[pos]
+		const xml =
+			typeof stop === 'object'
+				? createColorElement(
+						stop.color,
+						typeof stop.transparency === 'number' ? `<a:alpha val="${Math.round((100 - stop.transparency) * 1000)}"/>` : internalElements
+				  )
+				: createColorElement(stop, internalElements)
+		return `<a:gs pos="${Number(pos) * multiplier}">${xml}</a:gs>`
+	})
 	return `<a:gsLst>${res.join('')}</a:gsLst>`
 }
 
