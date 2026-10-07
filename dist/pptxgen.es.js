@@ -1,4 +1,4 @@
-/* PptxGenJS 3.11.0-beta @ 2024-03-20T17:21:23.053Z */
+/* PptxGenJS 3.11.0-beta @ 2026-09-01T11:37:21.961Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -36,11 +36,6 @@ function __spreadArray(to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 }
-
-typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-    var e = new Error(message);
-    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
-};
 
 /**
  * PptxGenJS Enums
@@ -5032,7 +5027,7 @@ function encodeSlideMediaRels(layout) {
                 }
             }
             else if (fs && https && rel.path.indexOf('http') === 0) {
-                https.get(rel.path, function (res) {
+                var request = https.get(rel.path, function (res) {
                     var rawData = '';
                     res.setEncoding('binary'); // IMPORTANT: Only binary encoding works
                     res.on('data', function (chunk) { return (rawData += chunk); });
@@ -5046,6 +5041,13 @@ function encodeSlideMediaRels(layout) {
                         candidateRels.filter(function (dupe) { return dupe.isDuplicate && dupe.path === rel.path; }).forEach(function (dupe) { return (dupe.data = rel.data); });
                         reject("ERROR! Unable to load image (https.get): ".concat(rel.path));
                     });
+                });
+                // request-level errors (DNS failure, refused connection, ...) emit on the request,
+                // not the response - without this handler they crash the node process
+                request.on('error', function (ex) {
+                    rel.data = IMG_BROKEN;
+                    candidateRels.filter(function (dupe) { return dupe.isDuplicate && dupe.path === rel.path; }).forEach(function (dupe) { return (dupe.data = rel.data); });
+                    reject("ERROR! Unable to load image (https.get): ".concat(rel.path, " | ex: ").concat(ex));
                 });
             }
             else {
@@ -6068,6 +6070,9 @@ function genXmlTextRunProperties(opts, isDefault) {
         if (opts.outline && typeof opts.outline === 'object') {
             runProps += "<a:ln w=\"".concat(valToPts(opts.outline.size || 0.75), "\">").concat(genXmlColorSelection(opts.outline.color || 'FFFFFF'), "</a:ln>");
         }
+        // gradient always wins in a case we get both color and gradient
+        // thus, here we have a known bug (PITCH-1492) that inline text will be rendered as gradient
+        // if we have block level text gradient and inline text with solid colour
         if (opts.color || opts.gradient)
             runProps += genXmlColorSelection({
                 color: opts.color,
