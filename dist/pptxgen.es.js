@@ -1,4 +1,4 @@
-/* PptxGenJS 3.11.0-beta @ 2026-09-01T11:37:21.961Z */
+/* PptxGenJS 3.11.0-beta @ 2026-10-07T11:42:04.588Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -824,7 +824,13 @@ function createGradientElements(gradient, internalElements) {
  */
 function createGradientList(stops, internalElements) {
     var multiplier = 1000;
-    var res = Object.keys(stops).map(function (pos) { return "<a:gs pos=\"".concat(Number(pos) * multiplier, "\">").concat(createColorElement(stops[pos], internalElements), "</a:gs>"); });
+    var res = Object.keys(stops).map(function (pos) {
+        var stop = stops[pos];
+        var xml = typeof stop === 'object'
+            ? createColorElement(stop.color, typeof stop.transparency === 'number' ? "<a:alpha val=\"".concat(Math.round((100 - stop.transparency) * 1000), "\"/>") : internalElements)
+            : createColorElement(stop, internalElements);
+        return "<a:gs pos=\"".concat(Number(pos) * multiplier, "\">").concat(xml, "</a:gs>");
+    });
     return "<a:gsLst>".concat(res.join(''), "</a:gsLst>");
 }
 /**
@@ -2113,6 +2119,8 @@ function addImageDefinition(target, opt) {
         h: intHeight || 1,
         altText: opt.altText || '',
         rounding: typeof opt.rounding === 'boolean' ? opt.rounding : false,
+        rectRadius: opt.rectRadius,
+        line: opt.line,
         sizing: sizing,
         placeholder: opt.placeholder,
         rotate: opt.rotate || 0,
@@ -5145,6 +5153,19 @@ function createSvgPngPreview(rel) {
 /**
  * PptxGenJS: XML Generation
  */
+function genXmlLine(line) {
+    var strXml = line.width ? "<a:ln w=\"".concat(valToPts(line.width), "\">") : '<a:ln>';
+    if (line.color)
+        strXml += genXmlColorSelection(line);
+    if (line.dashType)
+        strXml += "<a:prstDash val=\"".concat(line.dashType, "\"/>");
+    if (line.beginArrowType)
+        strXml += "<a:headEnd type=\"".concat(line.beginArrowType, "\"/>");
+    if (line.endArrowType)
+        strXml += "<a:tailEnd type=\"".concat(line.endArrowType, "\"/>");
+    // FUTURE: `endArrowSize` < a: headEnd type = "arrow" w = "lg" len = "lg" /> 'sm' | 'med' | 'lg'(values are 1 - 9, making a 3x3 grid of w / len possibilities)
+    return strXml + '</a:ln>';
+}
 var imageSizingXml = {
     cover: function (imgSize, boxDim) {
         var imgRatio = imgSize.h / imgSize.w, boxRatio = boxDim.h / boxDim.w, isBoxBased = boxRatio > imgRatio, width = isBoxBased ? boxDim.h / imgRatio : boxDim.w, height = isBoxBased ? boxDim.h : boxDim.w * imgRatio, hzPerc = Math.round(1e5 * 0.5 * (1 - boxDim.w / width)), vzPerc = Math.round(1e5 * 0.5 * (1 - boxDim.h / height));
@@ -5559,19 +5580,8 @@ function slideObjectToXml(slide) {
                 // Option: FILL
                 strSlideXml += slideItemObj.options.fill ? genXmlColorSelection(slideItemObj.options.fill) : '<a:noFill/>';
                 // shape Type: LINE: line color
-                if (slideItemObj.options.line) {
-                    strSlideXml += slideItemObj.options.line.width ? "<a:ln w=\"".concat(valToPts(slideItemObj.options.line.width), "\">") : '<a:ln>';
-                    if (slideItemObj.options.line.color)
-                        strSlideXml += genXmlColorSelection(slideItemObj.options.line);
-                    if (slideItemObj.options.line.dashType)
-                        strSlideXml += "<a:prstDash val=\"".concat(slideItemObj.options.line.dashType, "\"/>");
-                    if (slideItemObj.options.line.beginArrowType)
-                        strSlideXml += "<a:headEnd type=\"".concat(slideItemObj.options.line.beginArrowType, "\"/>");
-                    if (slideItemObj.options.line.endArrowType)
-                        strSlideXml += "<a:tailEnd type=\"".concat(slideItemObj.options.line.endArrowType, "\"/>");
-                    // FUTURE: `endArrowSize` < a: headEnd type = "arrow" w = "lg" len = "lg" /> 'sm' | 'med' | 'lg'(values are 1 - 9, making a 3x3 grid of w / len possibilities)
-                    strSlideXml += '</a:ln>';
-                }
+                if (slideItemObj.options.line)
+                    strSlideXml += genXmlLine(slideItemObj.options.line);
                 // EFFECTS > SHADOW: REF: @see http://officeopenxml.com/drwSp-effects.php
                 if (slideItemObj.options.shadow && slideItemObj.options.shadow.type !== 'none') {
                     slideItemObj.options.shadow.type = slideItemObj.options.shadow.type || 'outer';
@@ -5657,8 +5667,19 @@ function slideObjectToXml(slide) {
                 strSlideXml += '  <a:off x="' + x + '" y="' + y + '"/>';
                 strSlideXml += '  <a:ext cx="' + width + '" cy="' + height + '"/>';
                 strSlideXml += ' </a:xfrm>';
-                strSlideXml += ' <a:prstGeom prst="' + (rounding ? 'ellipse' : 'rect') + '"><a:avLst/></a:prstGeom>';
+                if (rounding) {
+                    strSlideXml += ' <a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>';
+                }
+                else if (slideItemObj.options.rectRadius > 0) {
+                    var adj = Math.min(50000, Math.round((slideItemObj.options.rectRadius * EMU * 100000) / Math.min(width, height)));
+                    strSlideXml += "<a:prstGeom prst=\"roundRect\"><a:avLst><a:gd name=\"adj\" fmla=\"val ".concat(adj, "\"/></a:avLst></a:prstGeom>");
+                }
+                else {
+                    strSlideXml += ' <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>';
+                }
                 strSlideXml += solidFillXmlString;
+                if (slideItemObj.options.line)
+                    strSlideXml += genXmlLine(slideItemObj.options.line);
                 // EFFECTS
                 if (hasEffects) {
                     strSlideXml += '<a:effectLst>';
@@ -6040,7 +6061,7 @@ function genXmlTextRunProperties(opts, isDefault) {
     var runPropsTag = isDefault ? 'a:defRPr' : 'a:rPr';
     // BEGIN runProperties (ex: `<a:rPr lang="en-US" sz="1600" b="1" dirty="0">`)
     runProps += '<' + runPropsTag + ' lang="' + (opts.lang ? opts.lang : 'en-US') + '"' + (opts.lang ? ' altLang="en-US"' : '');
-    runProps += opts.fontSize ? ' sz="' + Math.round(opts.fontSize) + '00"' : ''; // NOTE: Use round so sizes like '7.5' wont cause corrupt pres.
+    runProps += opts.fontSize ? ' sz="' + Math.round(opts.fontSize * 100) + '"' : ''; // NOTE: Use round so sizes like '7.5' wont cause corrupt pres.
     runProps += opts.hasOwnProperty('bold') ? " b=\"".concat(opts.bold ? 1 : 0, "\"") : '';
     runProps += opts.hasOwnProperty('italic') ? " i=\"".concat(opts.italic ? 1 : 0, "\"") : '';
     runProps += opts.hasOwnProperty('strike') ? " strike=\"".concat(typeof opts.strike === 'string' ? opts.strike : 'sngStrike', "\"") : '';
@@ -6367,7 +6388,8 @@ function genXmlTextBody(slideObj) {
             textObj.options.paraSpaceBefore = textObj.options.paraSpaceBefore || opts.paraSpaceBefore;
             textObj.options.paraSpaceAfter = textObj.options.paraSpaceAfter || opts.paraSpaceAfter;
             paragraphPropXml = genXmlParagraphProperties(textObj, false);
-            strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', ''); // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
+            if (idx === 0)
+                strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', ''); // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
             // C: Inherit any main options (color, fontSize, etc.)
             // NOTE: We only pass the text.options to genXmlTextRun (not the Slide.options),
             // so the run building function cant just fallback to Slide.color, therefore, we need to do that here before passing options below.
