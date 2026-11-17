@@ -52,11 +52,46 @@ describe('theme.colors', () => {
 		expect(theme).toContain('<a:folHlink><a:srgbClr val="954F72"/></a:folHlink>')
 	})
 
+	it('writes only 6-digit hex values; other values keep the Office color', async () => {
+		const { theme } = await parts(
+			makePres(pres => {
+				pres.theme = { colors: { dk1: '#1a1a1a', accent1: 'FF5A0', accent2: '"/><evil/>', accent3: 'GGGGGG' } }
+			})
+		)
+
+		expect(theme).toContain('<a:dk1><a:srgbClr val="1a1a1a"/></a:dk1>')
+		expect(theme).toContain('<a:accent1><a:srgbClr val="4472C4"/></a:accent1>')
+		expect(theme).toContain('<a:accent2><a:srgbClr val="ED7D31"/></a:accent2>')
+		expect(theme).toContain('<a:accent3><a:srgbClr val="A5A5A5"/></a:accent3>')
+		expect(theme).not.toContain('<evil/>')
+	})
+
 	it('writes the Office theme when no theme is set', async () => {
 		const { theme } = await parts(makePres())
 
 		expect(theme).toContain('name="Office Theme"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>')
 		expect(theme).toContain('<a:accent1><a:srgbClr val="4472C4"/></a:accent1>')
+	})
+})
+
+describe('theme.fontSchemeName', () => {
+	it('names the font scheme', async () => {
+		const { theme } = await parts(makePres(pres => (pres.theme = { name: 'Pitch Orange', fontSchemeName: 'Pitch Fonts' })))
+
+		expect(theme).toContain('<a:fontScheme name="Pitch Fonts">')
+	})
+
+	it('defaults to the color scheme name', async () => {
+		const { theme } = await parts(makePres(pres => (pres.theme = { name: 'Pitch & Orange' })))
+
+		expect(theme).toContain('<a:clrScheme name="Pitch &amp; Orange">')
+		expect(theme).toContain('<a:fontScheme name="Pitch &amp; Orange">')
+	})
+
+	it('keeps "Office" when no theme name is set', async () => {
+		const { theme } = await parts(makePres(pres => (pres.theme = { headFontFace: 'Inter' })))
+
+		expect(theme).toContain('<a:fontScheme name="Office">')
 	})
 })
 

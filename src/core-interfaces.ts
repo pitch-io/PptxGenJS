@@ -506,6 +506,11 @@ export interface ThemeProps {
 	 */
 	name?: string
 	/**
+	 * Font scheme name
+	 * @default the color scheme name ('Office' when `name` is not set)
+	 */
+	fontSchemeName?: string
+	/**
 	 * Color scheme slots (hex without hash); omitted slots keep the Office colors
 	 * @example { dk1: '1A1A1A', lt1: 'FFFFFF', accent1: 'FF5A00' }
 	 */
