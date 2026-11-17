@@ -1,4 +1,4 @@
-/* PptxGenJS 4.0.1 @ 2026-11-17T12:58:22.878Z */
+/* PptxGenJS 4.0.1 @ 2026-11-17T12:58:28.516Z */
 import JSZip from 'jszip';
 
 /******************************************************************************
@@ -2644,10 +2644,7 @@ function addTextDefinition(target, text, opts, isPlaceholder) {
             if (!itemOpts.placeholder) {
                 itemOpts.color = itemOpts.color || newObject.options.color || target.color || DEF_FONT_COLOR;
             }
-            // A.2: Placeholder should inherit their bullets or override them, so don't default them
-            if (itemOpts.placeholder || isPlaceholder) {
-                itemOpts.bullet = itemOpts.bullet || false;
-            }
+            // A.2: Placeholders inherit their bullets from the master unless `bullet` is set, so don't default them
             // A.3: Text targeting a placeholder need to inherit the placeholders options (eg: margin, valign, etc.) (Issue #640)
             if (itemOpts.placeholder && target._slideLayout && target._slideLayout._slideObjects) {
                 const placeHold = target._slideLayout._slideObjects.filter(item => item._type === 'placeholder' && item.options && item.options.placeholder && item.options.placeholder === itemOpts.placeholder)[0];
