@@ -1016,10 +1016,7 @@ export function addTextDefinition(target: PresSlide, text: TextProps[], opts: Te
 				itemOpts.color = itemOpts.color || newObject.options.color || target.color || DEF_FONT_COLOR
 			}
 
-			// A.2: Placeholder should inherit their bullets or override them, so don't default them
-			if (itemOpts.placeholder || isPlaceholder) {
-				itemOpts.bullet = itemOpts.bullet || false
-			}
+			// A.2: Placeholders inherit their bullets from the master unless `bullet` is set, so don't default them
 
 			// A.3: Text targeting a placeholder need to inherit the placeholders options (eg: margin, valign, etc.) (Issue #640)
 			if (itemOpts.placeholder && target._slideLayout && target._slideLayout._slideObjects) {
