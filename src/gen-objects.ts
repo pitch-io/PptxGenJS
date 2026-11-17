@@ -48,7 +48,7 @@ import {
 	TextPropsOptions,
 } from './core-interfaces'
 import { getSlidesForTableRows } from './gen-tables'
-import { encodeXmlEntities, getNewRelId, getSmartParseNumber, inch2Emu, valToPts, correctShadowOptions } from './gen-utils'
+import { encodeXmlEntities, getExtension, getNewRelId, getSmartParseNumber, inch2Emu, validateColorAndTransparency, validateFillOverlayProps, valToPts, correctShadowOptions } from './gen-utils'
 
 /** counter for included charts (used for index in their filenames) */
 let _chartCounter = 0
@@ -419,15 +419,7 @@ export function addImageDefinition(target: PresSlide, opt: ImageProps): void {
 	}
 
 	// STEP 1: Set extension
-	// NOTE: Split to address URLs with params (eg: `path/brent.jpg?someParam=true`)
-	let strImgExtn = (
-		strImagePath
-			.substring(strImagePath.lastIndexOf('/') + 1)
-			.split('?')[0]
-			.split('.')
-			.pop()
-			.split('#')[0] || 'png'
-	).toLowerCase()
+	let strImgExtn = opt.extn || getExtension(strImagePath)
 
 	// However, pre-encoded images can be whatever mime-type they want (and good for them!)
 	if (strImageData && /image\/(\w+);/.exec(strImageData) && /image\/(\w+);/.exec(strImageData).length > 0) {
@@ -451,6 +443,8 @@ export function addImageDefinition(target: PresSlide, opt: ImageProps): void {
 		h: intHeight || 1,
 		altText: opt.altText || '',
 		rounding: typeof opt.rounding === 'boolean' ? opt.rounding : false,
+		rectRadius: opt.rectRadius,
+		line: opt.line,
 		sizing,
 		placeholder: opt.placeholder,
 		rotate: opt.rotate || 0,
@@ -459,6 +453,9 @@ export function addImageDefinition(target: PresSlide, opt: ImageProps): void {
 		transparency: opt.transparency || 0,
 		objectName,
 		shadow: correctShadowOptions(opt.shadow),
+		fillOverlay: validateFillOverlayProps(opt.fillOverlay),
+		solidFill: validateColorAndTransparency(opt.solidFill),
+		blur: opt.blur || null,
 	}
 
 	// STEP 4: Add this image to this Slide Rels (rId/rels count spans all slides! Count all images to get next rId)
@@ -476,16 +473,16 @@ export function addImageDefinition(target: PresSlide, opt: ImageProps): void {
 			isSvgPng: true,
 			svgSize: { w: getSmartParseNumber(newObject.options.w, 'X', target._presLayout), h: getSmartParseNumber(newObject.options.h, 'Y', target._presLayout) },
 		})
+		imageRelId++
 		newObject.imageRid = imageRelId
 		target._relsMedia.push({
 			path: strImagePath || strImageData,
 			type: 'image/svg+xml',
 			extn: strImgExtn,
 			data: strImageData || '',
-			rId: imageRelId + 1,
+			rId: newObject.imageRid,
 			Target: `../media/image-${target._slideNum}-${target._relsMedia.length + 1}.${strImgExtn}`,
 		})
-		newObject.imageRid = imageRelId + 1
 	} else {
 		// PERF: Duplicate media should reuse existing `Target` value and not create an additional copy
 		const dupeItem = target._relsMedia.filter(item => item.path && item.path === strImagePath && item.type === 'image/' + strImgExtn && !item.isDuplicate)[0]
@@ -807,6 +804,7 @@ export function addTableDefinition(
 					newCell.options.border[idx] = {
 						type: newCell.options.border[idx].type || DEF_CELL_BORDER.type,
 						color: newCell.options.border[idx].color || DEF_CELL_BORDER.color,
+						transparency: newCell.options.border[idx].transparency || DEF_CELL_BORDER.transparency,
 						pt: typeof newCell.options.border[idx].pt === 'number' ? newCell.options.border[idx].pt : DEF_CELL_BORDER.pt,
 					}
 				})
@@ -839,7 +837,12 @@ export function addTableDefinition(
 	} else if (Array.isArray(opt.border)) {
 		[0, 1, 2, 3].forEach(idx => {
 			opt.border[idx] = opt.border[idx]
-				? { type: opt.border[idx].type || DEF_CELL_BORDER.type, color: opt.border[idx].color || DEF_CELL_BORDER.color, pt: opt.border[idx].pt || DEF_CELL_BORDER.pt }
+				? {
+						type: opt.border[idx].type || DEF_CELL_BORDER.type,
+						color: opt.border[idx].color || DEF_CELL_BORDER.color,
+						pt: opt.border[idx].pt || DEF_CELL_BORDER.pt,
+						transparency: opt.border[idx].transparency || DEF_CELL_BORDER.transparency,
+				  }
 				: { type: 'none' }
 		})
 	}
@@ -1157,8 +1160,8 @@ export function addBackgroundDefinition(props: BackgroundProps, target: SlideLay
 	if (props && (props.path || props.data)) {
 		// Allow the use of only the data key (`path` isnt reqd)
 		props.path = props.path || 'preencoded.png'
-		let strImgExtn = (props.path.split('.').pop() || 'png').split('?')[0] // Handle "blah.jpg?width=540" etc.
-		if (strImgExtn === 'jpg') strImgExtn = 'jpeg' // base64-encoded jpg's come out as "data:image/jpeg;base64,/9j/[...]", so correct exttnesion to avoid content warnings at PPT startup
+		let strImgExtn = props.extn || getExtension(props.path)
+		if (strImgExtn === 'jpg') strImgExtn = 'jpeg' // base64-encoded jpg's come out as "data:image/jpeg;base64,/9j/[...]", so correct extension to avoid content warnings at PPT startup
 
 		target._relsMedia = target._relsMedia || []
 		const intRels = target._relsMedia.length + 1

@@ -74,7 +74,7 @@ export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Array<Pro
 					// ────────────  NODE HTTP(S)  ────────────
 					if (isNode && https && rel.path.startsWith('http')) {
 						return await new Promise<string>((resolve, reject) => {
-							https.get(rel.path, res => {
+							const request = https.get(rel.path, res => {
 								let raw = ''
 								res.setEncoding('binary') // IMPORTANT: Only binary encoding works
 								res.on('data', chunk => (raw += chunk))
@@ -92,6 +92,15 @@ export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Array<Pro
 										.forEach(dupe => (dupe.data = rel.data))
 									reject(new Error(`ERROR! Unable to load image (https.get): ${rel.path}`))
 								})
+							})
+							// request-level errors (DNS failure, refused connection, ...) emit on the request,
+							// not the response - without this handler they crash the node process
+							request.on('error', ex => {
+								rel.data = IMG_BROKEN
+								candidateRels
+									.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+									.forEach(dupe => (dupe.data = rel.data))
+								reject(new Error(`ERROR! Unable to load image (https.get): ${rel.path} | ex: ${String(ex)}`))
 							})
 						})
 					}
@@ -117,12 +126,12 @@ export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Array<Pro
 							}
 							reader.readAsDataURL(xhr.response)
 						}
-						xhr.onerror = () => {
+						xhr.onerror = ex => {
 							rel.data = IMG_BROKEN
 							candidateRels
 								.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
 								.forEach(dupe => (dupe.data = rel.data))
-							reject(new Error(`ERROR! Unable to load image (xhr.onerror): ${rel.path}`))
+							reject(new Error(`ERROR! Unable to load image (xhr.onerror): ${rel.path} | ex: ${String(ex)}`))
 						}
 						// B: execute request
 						xhr.open('GET', rel.path)
@@ -186,9 +195,9 @@ async function createSvgPngPreview(rel: ISlideRelMedia): Promise<string> {
 			}
 			canvas = null
 		}
-		image.onerror = () => {
+		image.onerror = ex => {
 			rel.data = IMG_BROKEN
-			reject(new Error(`ERROR! Unable to load image (image.onerror): ${rel.path}`))
+			reject(new Error(`ERROR! Unable to load image (image.onerror): ${rel.path} | ex: ${String(ex)}`))
 		}
 
 		// C: Load image
@@ -225,7 +234,7 @@ function getSizeFromImage (inImgUrl: string): { width: number, height: number } 
 			const obj = { width: image.width, height: image.height }
 			return obj
 		}
-		image.onerror = () => {
+		image.onerror = ex => {
 			console.error(`ERROR: image.onload: Unable to load image: ${inImgUrl}`)
 		}
 

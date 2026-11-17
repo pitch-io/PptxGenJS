@@ -3,7 +3,7 @@
  */
 
 import { EMU, REGEX_HEX_COLOR, DEF_FONT_COLOR, ONEPT, SchemeColor, SCHEME_COLORS } from './core-enums'
-import { PresLayout, TextGlowProps, PresSlide, ShapeFillProps, Color, ShapeLineProps, Coord, ShadowProps } from './core-interfaces'
+import { PresLayout, TextGlowProps, PresSlide, ShapeFillProps, Color, ShapeLineProps, Coord, Gradient, GradientStops, ShadowProps, SolidFillProps, FillOverlayProps } from './core-interfaces'
 
 /**
  * Translates any type of `x`/`y`/`w`/`h` prop to EMU
@@ -181,6 +181,76 @@ export function createGlowElement (options: TextGlowProps, defaults: TextGlowPro
 }
 
 /**
+ * Create gradient elements i.e. `a:gsLst` and `a:lin`
+ * @param {Gradient} gradient
+ * @param {string} internalElements
+ * @see http://officeopenxml.com/drwSp-GradFill.php
+ * @returns XML string
+ */
+function createGradientElements(gradient: Gradient, internalElements: string): string {
+	let strXml = '',
+		stops = gradient.stops
+
+	if (!isGradient(gradient)) {
+		console.warn(`This is not a valid gradient:`, gradient)
+		console.warn(`Fallback to default gradient with "${SchemeColor.background1}" and "${SchemeColor.background2}".`)
+		console.warn(`Please provide a valid gradient e.g. { angle:0, stops: { 0:"#FFFFFF", 100:"#000000" } }.`)
+		stops = { 0: SchemeColor.background1, 100: SchemeColor.background2 }
+	}
+
+	strXml += createGradientList(stops, internalElements)
+	strXml += createLinearGradient(gradient.angle)
+
+	return strXml
+}
+
+/**
+ * Create gradient list element i.e. `a:gsLst`
+ * @param {Gradient} gradient
+ * @param {string} internalElements
+ * @returns XML string
+ */
+function createGradientList(stops: GradientStops, internalElements: string): string {
+	const multiplier = 1000
+	const res = Object.keys(stops).map(pos => {
+		const stop = stops[pos]
+		const xml =
+			typeof stop === 'object'
+				? createColorElement(
+						stop.color,
+						typeof stop.transparency === 'number' ? `<a:alpha val="${Math.round((100 - stop.transparency) * 1000)}"/>` : internalElements
+				  )
+				: createColorElement(stop, internalElements)
+		return `<a:gs pos="${Number(pos) * multiplier}">${xml}</a:gs>`
+	})
+	return `<a:gsLst>${res.join('')}</a:gsLst>`
+}
+
+/**
+ * Create linear gradient element i.e. `a:lin`
+ * @param {number} angle
+ * @returns XML string
+ */
+function createLinearGradient(angle = 0): string {
+	const multiplier = 60000
+	return `<a:lin ang="${angle * multiplier}"/>`
+}
+
+/**
+ * Validate gradient
+ * @param {Gradient} gradient
+ * @returns boolean
+ */
+function isGradient(gradient?: Gradient): boolean {
+	return Boolean(
+		gradient?.stops &&
+			typeof gradient.stops === 'object' &&
+			Object.keys(gradient.stops).length > 0 &&
+			Object.keys(gradient.stops).every(stop => Number.isFinite(Number(stop)))
+	)
+}
+
+/**
  * Create color selection
  * @param {Color | ShapeFillProps | ShapeLineProps} props fill props
  * @returns XML string
@@ -195,6 +265,7 @@ export function genXmlColorSelection (props: Color | ShapeFillProps | ShapeLineP
 		if (typeof props === 'string') colorVal = props
 		else {
 			if (props.type) fillType = props.type
+			if (props.gradient) fillType = 'gradient'
 			if (props.color) colorVal = props.color
 			if (props.alpha) internalElements += `<a:alpha val="${Math.round((100 - props.alpha) * 1000)}"/>` // DEPRECATED: @deprecated v3.3.0
 			if (props.transparency) internalElements += `<a:alpha val="${Math.round((100 - props.transparency) * 1000)}"/>`
@@ -203,6 +274,9 @@ export function genXmlColorSelection (props: Color | ShapeFillProps | ShapeLineP
 		switch (fillType) {
 			case 'solid':
 				outText += `<a:solidFill>${createColorElement(colorVal, internalElements)}</a:solidFill>`
+				break
+			case 'gradient':
+				outText += `<a:gradFill>${createGradientElements((props as ShapeFillProps).gradient, internalElements)}</a:gradFill>`
 				break
 			default: // @note need a statement as having only "break" is removed by rollup, then tiggers "no-default" js-linter
 				outText += ''
@@ -223,12 +297,24 @@ export function getNewRelId (target: PresSlide): number {
 }
 
 /**
+ * Get the file extension from a path
+ * @param {string} path - file path or url e.g. 'path/brent.jpg?someParam=true'
+ * @returns {string} - the file extension e.g. 'jpg'
+ */
+export function getExtension(path: string, defaultExtn = 'png'): string {
+	const extnRegex = /\.(\w{3,4})(?:$|\?)/
+	const matches = path.match(extnRegex)
+	if (matches) return matches[1]
+	return defaultExtn
+}
+
+/**
  * Checks shadow options passed by user and performs corrections if needed.
  * @param {ShadowProps} ShadowProps - shadow options
  */
-export function correctShadowOptions (ShadowProps: ShadowProps): ShadowProps | undefined {
+export function correctShadowOptions(ShadowProps: ShadowProps): ShadowProps | undefined {
 	if (!ShadowProps || typeof ShadowProps !== 'object') {
-		// console.warn("`shadow` options must be an object. Ex: `{shadow: {type:'none'}}`")
+		//console.warn("`shadow` options must be an object. Ex: `{shadow: {type:'none'}}`")
 		return
 	}
 
@@ -264,12 +350,68 @@ export function correctShadowOptions (ShadowProps: ShadowProps): ShadowProps | u
 
 	// OPT: `color`
 	if (ShadowProps.color) {
-		// INCORRECT FORMAT
-		if (ShadowProps.color.startsWith('#')) {
-			console.warn('Warning: shadow.color should not include hash (#) character, , e.g. "FF0000"')
-			ShadowProps.color = ShadowProps.color.replace('#', '')
-		}
+		ShadowProps.color = validateColorOpt(ShadowProps.color, 'shadow')
 	}
 
 	return ShadowProps
+}
+
+function validateColorOpt(color: string, propType: string): string {
+	// INCORRECT FORMAT
+	if (color.startsWith('#')) {
+		console.warn(`Warning: ${propType}.color should have no hash character, e.g. "FF0000"`)
+		return color.replace('#', '')
+	}
+
+	return color
+}
+
+function validateTransparencyOpt(transparency: number, propType): number {
+	// A: REALITY-CHECK
+	if (isNaN(Number(transparency)) || transparency < 0 || transparency > 100) {
+		console.warn(`Warning: ${propType}.transparency can only be 0-100`)
+		return 0
+	}
+
+	// B: ROBUST: Cast any type of valid arg to int: '12', 12.3, etc. -> 12
+	return Number(transparency)
+}
+
+export function validateColorAndTransparency(props: SolidFillProps, propType = 'solidFill'): SolidFillProps | null {
+	if (!props || typeof props !== 'object' || !props.color) {
+		return null
+	}
+
+	if (props.color) {
+		props.color = validateColorOpt(props.color, propType)
+	}
+
+	if (!props.transparency) {
+		props.transparency = 0
+	}
+
+	if (props.transparency) {
+		props.transparency = validateTransparencyOpt(props.transparency, propType)
+	}
+
+	return props
+}
+
+export function validateFillOverlayProps(props: FillOverlayProps): FillOverlayProps | null {
+	const blendModes = ['darken', 'lighten', 'mult', 'screen', 'over']
+
+	props = validateColorAndTransparency(props, 'fillOverlay')
+
+	// If no blend mode was passed, set to default 'over'
+	if (props && !props.blend) {
+		props.blend = 'over'
+	}
+
+	// If blend mode is invalid, set to default 'over'
+	if (props && blendModes.indexOf(props?.blend) === -1) {
+		console.warn(`Warning: fillOverlay.blend mode was invalid and is now set to default 'over'\nValid modes are 'darken', 'lighten', 'mult', 'screen', 'over'`)
+		props.blend = 'over'
+	}
+
+	return props
 }

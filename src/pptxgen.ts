@@ -79,7 +79,9 @@ import {
 } from './core-enums'
 import {
 	AddSlideProps,
+	FontProps,
 	IPresentationProps,
+	PresFont,
 	PresLayout,
 	PresSlide,
 	SectionProps,
@@ -90,9 +92,11 @@ import {
 	ThemeProps,
 	WriteBaseProps,
 	WriteFileProps,
+	WriteFile,
 	WriteProps,
 } from './core-interfaces'
 import * as genCharts from './gen-charts'
+import * as genFonts from './gen-fonts'
 import * as genObj from './gen-objects'
 import * as genMedia from './gen-media'
 import * as genTable from './gen-tables'
@@ -249,6 +253,12 @@ export default class PptxGenJS implements IPresentationProps {
 		return this._slideLayouts
 	}
 
+	/** this Presentation's fonts */
+	private _fonts: PresFont[]
+	public get fonts(): PresFont[] {
+		return this._fonts
+	}
+
 	private LAYOUTS: { [key: string]: PresLayout }
 
 	// Exposed class props
@@ -330,6 +340,7 @@ export default class PptxGenJS implements IPresentationProps {
 		this._revision = '1' // Note: Must be a whole number
 		this._subject = 'PptxGenJS Presentation'
 		this._title = 'PptxGenJS Presentation'
+
 		// PptxGenJS props
 		this._presLayout = {
 			name: this.LAYOUTS[DEF_PRES_LAYOUT].name,
@@ -339,6 +350,7 @@ export default class PptxGenJS implements IPresentationProps {
 			height: this.LAYOUTS[DEF_PRES_LAYOUT].height,
 		}
 		this._rtlMode = false
+		this._fonts = []
 		//
 		this._slideLayouts = [
 			{
@@ -440,12 +452,31 @@ export default class PptxGenJS implements IPresentationProps {
 	}
 
 	/**
+	 * Create font rels for this Presentation
+	 * @param {JSZip} zip - JSZip instance
+	 * @param {PresFont[]} fonts - presentation fonts
+	 */
+	private createFontRels = (zip: JSZip, fonts: PresFont[]) => {
+		fonts
+			.map(font => font.styles)
+			.flat()
+			.forEach(style => {
+				const opts = { base64: true }
+				const loc = 'ppt/' + style.rel.target
+				const base64 = typeof style.data === 'string' ? style.data : ''
+				const data = base64.split(',').pop()
+
+				zip.file(loc, data, opts)
+			})
+	}
+
+	/**
 	 * Create and export the .pptx file
 	 * @param {string} exportName - output file type
 	 * @param {Blob} blobContent - Blob content
 	 * @return {Promise<string>} Promise with file name
 	 */
-	private readonly writeFileToBrowser = async (exportName: string, blobContent: Blob): Promise<string> => {
+	private readonly writeFileToBrowser = async (exportName: string, blobContent: Blob): Promise<WriteFile> => {
 		// STEP 1: Create element
 		const eleLink = document.createElement('a')
 		eleLink.setAttribute('style', 'display:none;')
@@ -455,7 +486,8 @@ export default class PptxGenJS implements IPresentationProps {
 		// STEP 2: Download file to browser
 		// DESIGN: Use `createObjectURL()` to D/L files in client browsers (FYI: synchronously executed)
 		if (window.URL.createObjectURL) {
-			const url = window.URL.createObjectURL(new Blob([blobContent], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }))
+			const blob = new Blob([blobContent], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
+			const url = window.URL.createObjectURL(blob)
 			eleLink.href = url
 			eleLink.download = exportName
 			eleLink.click()
@@ -467,7 +499,11 @@ export default class PptxGenJS implements IPresentationProps {
 			}, 100)
 
 			// Done
-			return await Promise.resolve(exportName)
+			return {
+				name: exportName,
+				type: blob.type,
+				size: blob.size,
+			}
 		}
 	}
 
@@ -489,14 +525,14 @@ export default class PptxGenJS implements IPresentationProps {
 			arrMediaPromises = arrMediaPromises.concat(genMedia.encodeSlideMediaRels(layout))
 		})
 		arrMediaPromises = arrMediaPromises.concat(genMedia.encodeSlideMediaRels(this.masterSlide))
+		arrMediaPromises = arrMediaPromises.concat(genFonts.encodePresFontRels(this.fonts))
 
 		// STEP 2: Wait for Promises (if any) then generate the PPTX file
-		return await Promise.all(arrMediaPromises).then(async () => {
+		return await Promise.allSettled(arrMediaPromises).then(async () => {
 			// A: Add empty placeholder objects to slides that don't already have them
 			this.slides.forEach(slide => {
 				if (slide._slideLayout) genObj.addPlaceholdersToSlideLayouts(slide)
 			})
-
 			// B: Add all required folders and files
 			zip.folder('_rels')
 			zip.folder('docProps')
@@ -514,7 +550,7 @@ export default class PptxGenJS implements IPresentationProps {
 			zip.file('_rels/.rels', genXml.makeXmlRootRels())
 			zip.file('docProps/app.xml', genXml.makeXmlApp(this.slides, this.company)) // TODO: pass only `this` like below! 20200206
 			zip.file('docProps/core.xml', genXml.makeXmlCore(this.title, this.subject, this.author, this.revision)) // TODO: pass only `this` like below! 20200206
-			zip.file('ppt/_rels/presentation.xml.rels', genXml.makeXmlPresentationRels(this.slides))
+			zip.file('ppt/_rels/presentation.xml.rels', genXml.makeXmlPresentationRels(this.slides, this.fonts))
 			zip.file('ppt/theme/theme1.xml', genXml.makeXmlTheme(this))
 			zip.file('ppt/presentation.xml', genXml.makeXmlPresentation(this))
 			zip.file('ppt/presProps.xml', genXml.makeXmlPresProps())
@@ -546,6 +582,7 @@ export default class PptxGenJS implements IPresentationProps {
 				this.createChartMediaRels(slide, zip, arrChartPromises)
 			})
 			this.createChartMediaRels(this.masterSlide, zip, arrChartPromises)
+			this.createFontRels(zip, this.fonts)
 
 			// E: Wait for Promises (if any) then generate the PPTX file
 			return await Promise.all(arrChartPromises).then(async () => {
@@ -599,9 +636,9 @@ export default class PptxGenJS implements IPresentationProps {
 	 * @param {WriteFileProps} props - output file properties
 	 * @returns {Promise<string>} the presentation name
 	 */
-	async writeFile(props?: WriteFileProps | string): Promise<string> {
+	async writeFile(props?: WriteFileProps | string): Promise<string | WriteFile> {
 		// STEP 1: Figure out where we are running
-		const isNode = typeof process !== 'undefined' && !!process.versions?.node && process.release?.name === 'node'
+		const isNode = typeof window === 'undefined' && typeof process !== 'undefined' && !!process.versions?.node && process.release?.name === 'node'
 
 		// STEP 2: Normalise the user arguments
 		if (typeof props === 'string') {
@@ -626,8 +663,7 @@ export default class PptxGenJS implements IPresentationProps {
 		}
 
 		// Browser branch - push a download
-		await this.writeFileToBrowser(fileName, data as Blob)
-		return fileName
+		return await this.writeFileToBrowser(fileName, data as Blob)
 	}
 
 	// PRESENTATION METHODS
@@ -710,6 +746,39 @@ export default class PptxGenJS implements IPresentationProps {
 		}
 
 		return newSlide
+	}
+
+	addFonts(fonts: FontProps[]) {
+		if (!genFonts.isValidFonts(fonts)) {
+			console.warn('addFonts: received invalid fonts:', fonts)
+			console.warn(`
+				Usage example:
+
+				pptx.addFonts([
+					{
+						name: "Roboto",
+						styles: [
+							{ name: "regular", path: "http://path.to.font/roboto-regular.fntdata" },
+							{ name: "italic", path: "http://path.to.font/roboto-italic.fntdata" },
+							{ name: "bold", path: "http://path.to.font/roboto-bold.fntdata" },
+							{ name: "boldItalic", path: "http://path.to.font/roboto-bold-italic.fntdata" }
+						]
+				  }
+				])
+			`)
+			return
+		}
+
+		this._fonts = fonts.map(font => ({
+			...font,
+			styles: font.styles.map(style => ({
+				...style,
+				rel: {
+					id: '', // populated in `genXml.makeXmlPresentationRels`
+					target: `fonts/${font.name.replace(/ /g, '')}-${style.name}.fntdata`,
+				},
+			})),
+		}))
 	}
 
 	/**

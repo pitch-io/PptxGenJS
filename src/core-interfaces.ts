@@ -59,6 +59,13 @@ export interface DataOrPathProps {
 	 */
 	path?: string
 	/**
+	 * file extension
+	 * - use when the path does not already have an extension, ex: "https://images.unsplash.com/photo-1618336753974-aae8e04506aa"
+	 *
+	 * @example 'jpg'
+	 */
+	extn?: string
+	/**
 	 * base64-encoded string
 	 * - Useful for avoiding potential path/server issues
 	 *
@@ -66,6 +73,7 @@ export interface DataOrPathProps {
 	 */
 	data?: string
 }
+
 export interface BackgroundProps extends DataOrPathProps, ShapeFillProps {
 	/**
 	 * Color (hex format)
@@ -86,6 +94,9 @@ export interface BackgroundProps extends DataOrPathProps, ShapeFillProps {
 export type HexColor = string
 export type ThemeColor = 'tx1' | 'tx2' | 'bg1' | 'bg2' | 'accent1' | 'accent2' | 'accent3' | 'accent4' | 'accent5' | 'accent6'
 export type Color = HexColor | ThemeColor
+export type Gradient = { angle?: number; stops: GradientStops }
+export type GradientStop = Color | { color: Color; transparency?: number }
+export type GradientStops = { [key: number]: GradientStop }
 export type Margin = number | [number, number, number, number]
 export type HAlign = 'left' | 'center' | 'right' | 'justify'
 export type VAlign = 'top' | 'middle' | 'bottom'
@@ -103,9 +114,11 @@ export interface BorderProps {
 	 * @default '666666'
 	 */
 	color?: HexColor
-
-	// TODO: add `transparency` prop to Borders (0-100%)
-
+	/**
+	 * Border transparency (0-100%)
+	 * @default 0
+	 */
+	transparency?: number
 	// TODO: add `width` - deprecate `pt`
 	/**
 	 * Border size (points)
@@ -181,6 +194,14 @@ export interface ShapeFillProps {
 	 */
 	color?: Color
 	/**
+	 * Fill gradient
+	 * - Key inside object is the color position in percentage
+	 * - `HextColor` or `ThemeColor`
+	 * @example { angle:45, stops: { 0:'FF0000', 100:'00FF00' } }
+	 * @example { angle:90, stops: { 0:pptx.SchemeColor.accent1, 100:pptx.SchemeColor.accent1 } }
+	 */
+	gradient?: Gradient
+	/**
 	 * Transparency (percent)
 	 * - MS-PPT > Format Shape > Fill & Line > Fill > Transparency
 	 * - range: 0-100
@@ -191,7 +212,7 @@ export interface ShapeFillProps {
 	 * Fill type
 	 * @default 'solid'
 	 */
-	type?: 'none' | 'solid'
+	type?: 'none' | 'solid' | 'gradient'
 
 	/**
 	 * Transparency (percent)
@@ -364,6 +385,13 @@ export interface TextBaseProps {
 	 */
 	fontSize?: number
 	/**
+	 * Text gradient
+	 * - Key inside object is the color position in percentage
+	 * - `HextColor` or `ThemeColor`
+	 * @example { angle:45, stops: { 0:'FF0000', 100:'00FF00' } }
+	 */
+	gradient?: Gradient
+	/**
 	 * Text highlight color (hex format)
 	 * @example 'FFFF00' // yellow
 	 */
@@ -474,6 +502,33 @@ export interface ThemeProps {
 	bodyFontFace?: string
 }
 
+export interface SolidFillProps {
+	/**
+	 * Solid Fill Prop is used as a color underlay for an image
+	 * Combined with `ImageProp.transparency` , a color mask effect can be achieved
+	 */
+
+	/**
+	 * Color: Hex strings without hash (#) character
+	 * @example '00FF00'
+	 */
+	color: string
+	/**
+	 * Transparency: range 0-100 where 0 is completely visible
+	 * @default transparency: 0
+	 */
+	transparency?: number
+}
+export interface FillOverlayProps extends SolidFillProps {
+	/* Fill Overlay applies a color blend effect on an image */
+
+	/**
+	 * Blend modes: darken, lighten, mult, screen, over
+	 * @default 'over'
+	 */
+	blend?: 'darken' | 'lighten' | 'mult' | 'screen' | 'over'
+}
+
 // image / media ==================================================================================
 export type MediaType = 'audio' | 'online' | 'video'
 
@@ -521,6 +576,14 @@ export interface ImageProps extends PositionProps, DataOrPathProps, ObjectNamePr
 	 */
 	shadow?: ShadowProps
 	/**
+	 * Rounded corner radius (inches), measured against the cropped size
+	 */
+	rectRadius?: number
+	/**
+	 * Image outline
+	 */
+	line?: ShapeLineProps
+	/**
 	 * Image sizing options
 	 */
 	sizing?: {
@@ -567,6 +630,39 @@ export interface ImageProps extends PositionProps, DataOrPathProps, ObjectNamePr
 	 * @example 25 // 25% transparent
 	 */
 	transparency?: number
+	/**
+	 * Fill Overlay Props
+	 * @default null
+	 * @example { color: 'FF0000',
+	 *            transparency: 25,
+	 * 			  blend: 'screen' }
+	 */
+	fillOverlay?: FillOverlayProps
+	/**
+	 * Solid Fill Props
+	 * @default null
+	 * @example { color: '00FF00',
+	 *            transparency: 25 }
+	 */
+	solidFill?: SolidFillProps
+	/**
+	 * Image Blur
+	 * @default null
+	 */
+	blur?: {
+		/**
+		 * radius (EMUs)
+		 * see ref http://officeopenxml.com/drwPic-effects.php
+		 * @default 0
+		 */
+		radius: number
+		/**
+		 * specifies whether the blur effect should extend
+		 * beyond the original bounds of the image
+		 * @default false
+		 */
+		grow?: boolean
+	}
 }
 /**
  * Add media (audio/video) to slide
@@ -584,13 +680,6 @@ export interface MediaProps extends PositionProps, DataOrPathProps, ObjectNamePr
 	 * @default "play button" image, gray background
 	 */
 	cover?: string
-	/**
-	 * media file extension
-	 * - use when the media file path does not already have an extension, ex: "/folder/SomeSong"
-	 * @since 3.9.0
-	 * @default extension from file provided
-	 */
-	extn?: string
 	/**
 	 * video embed link
 	 * - works with YouTube
@@ -1536,6 +1625,7 @@ export interface IChartPropsChartPie {
 	 * @default 0
 	 */
 	firstSliceAng?: number
+	chartPieExplosion?: number
 }
 export interface IChartPropsChartRadar {
 	/**
@@ -1699,6 +1789,20 @@ export interface WriteProps extends WriteBaseProps {
 	 */
 	outputType?: WRITE_OUTPUT_TYPE
 }
+export interface WriteFile {
+	/**
+	 * File name
+	 */
+	name: string
+	/**
+	 * File size
+	 */
+	size: number
+	/**
+	 * Mime type
+	 */
+	type: string
+}
 export interface WriteFileProps extends WriteBaseProps {
 	/**
 	 * Export file name
@@ -1849,6 +1953,7 @@ export interface AddSlideProps {
 export interface PresentationProps {
 	author: string
 	company: string
+	fonts: PresFont[]
 	layout: string
 	masterSlide: PresSlide
 	/**
@@ -1871,4 +1976,27 @@ export interface IPresentationProps extends PresentationProps {
 	sections: SectionProps[]
 	slideLayouts: SlideLayout[]
 	slides: PresSlide[]
+}
+
+export interface FontProps {
+	name: string
+	styles: FontStyleProps[]
+}
+
+export interface FontStyleProps {
+	name: 'regular' | 'bold' | 'italic' | 'boldItalic'
+	data?: string | ArrayBuffer
+	path?: string
+}
+
+export interface PresFontStyle extends FontStyleProps {
+	rel: {
+		id: string
+		target: string
+	}
+}
+
+export interface PresFont {
+	name: string
+	styles: PresFontStyle[]
 }

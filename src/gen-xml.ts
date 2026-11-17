@@ -17,15 +17,19 @@ import {
 	SLIDE_OBJECT_TYPES,
 } from './core-enums'
 import {
+	FillOverlayProps,
 	IPresentationProps,
 	ISlideObject,
 	ISlideRel,
 	ISlideRelChart,
 	ISlideRelMedia,
 	ObjectOptions,
+	PresFont,
 	PresSlide,
 	ShadowProps,
+	ShapeLineProps,
 	SlideLayout,
+	SolidFillProps,
 	TableCell,
 	TableCellProps,
 	TextProps,
@@ -42,6 +46,16 @@ import {
 	inch2Emu,
 	valToPts,
 } from './gen-utils'
+
+function genXmlLine(line: ShapeLineProps): string {
+	let strXml = line.width ? `<a:ln w="${valToPts(line.width)}">` : '<a:ln>'
+	if (line.color) strXml += genXmlColorSelection(line)
+	if (line.dashType) strXml += `<a:prstDash val="${line.dashType}"/>`
+	if (line.beginArrowType) strXml += `<a:headEnd type="${line.beginArrowType}"/>`
+	if (line.endArrowType) strXml += `<a:tailEnd type="${line.endArrowType}"/>`
+	// FUTURE: `endArrowSize` < a: headEnd type = "arrow" w = "lg" len = "lg" /> 'sm' | 'med' | 'lg'(values are 1 - 9, making a 3x3 grid of w / len possibilities)
+	return strXml + '</a:ln>'
+}
 
 const ImageSizingXml = {
 	cover: function (imgSize: { w: number, h: number }, boxDim: { w: number, h: number, x: number, y: number }) {
@@ -89,7 +103,7 @@ function slideObjectToXml (slide: PresSlide | SlideLayout): string {
 	// STEP 1: Add background color/image (ensure only a single `<p:bg>` tag is created, ex: when master-baskground has both `color` and `path`)
 	if (slide._bkgdImgRid) {
 		strSlideXml += `<p:bg><p:bgPr><a:blipFill dpi="0" rotWithShape="1"><a:blip r:embed="rId${slide._bkgdImgRid}"><a:lum/></a:blip><a:srcRect/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>`
-	} else if (slide.background?.color) {
+	} else if (slide.background?.color || slide.background?.gradient) {
 		strSlideXml += `<p:bg><p:bgPr>${genXmlColorSelection(slide.background)}</p:bgPr></p:bg>`
 	} else if (!slide.bkgd && slide._name && slide._name === DEF_PRES_LAYOUT_NAME) {
 		// NOTE: Default [white] background is needed on slideMaster1.xml to avoid gray background in Keynote (and Finder previews)
@@ -351,9 +365,11 @@ function slideObjectToXml (slide: PresSlide | SlideLayout): string {
 								{ idx: 0, name: 'lnT' },
 								{ idx: 2, name: 'lnB' },
 							].forEach(obj => {
+								const opacity = Math.round((100 - cellOpts.border[obj.idx].transparency) * 1000)
+								const borderAlpha = `<a:alpha val="${opacity}"/>`
 								if (cellOpts.border[obj.idx].type !== 'none') {
 									strXml += `<a:${obj.name} w="${valToPts(cellOpts.border[obj.idx].pt)}" cap="flat" cmpd="sng" algn="ctr">`
-									strXml += `<a:solidFill>${createColorElement(cellOpts.border[obj.idx].color)}</a:solidFill>`
+									strXml += `<a:solidFill>${createColorElement(cellOpts.border[obj.idx].color, borderAlpha)}</a:solidFill>`
 									strXml += `<a:prstDash val="${cellOpts.border[obj.idx].type === 'dash' ? 'sysDash' : 'solid'
 									}"/><a:round/><a:headEnd type="none" w="med" len="med"/><a:tailEnd type="none" w="med" len="med"/>`
 									strXml += `</a:${obj.name}>`
@@ -505,15 +521,7 @@ function slideObjectToXml (slide: PresSlide | SlideLayout): string {
 				strSlideXml += slideItemObj.options.fill ? genXmlColorSelection(slideItemObj.options.fill) : '<a:noFill/>'
 
 				// shape Type: LINE: line color
-				if (slideItemObj.options.line) {
-					strSlideXml += slideItemObj.options.line.width ? `<a:ln w="${valToPts(slideItemObj.options.line.width)}">` : '<a:ln>'
-					if (slideItemObj.options.line.color) strSlideXml += genXmlColorSelection(slideItemObj.options.line)
-					if (slideItemObj.options.line.dashType) strSlideXml += `<a:prstDash val="${slideItemObj.options.line.dashType}"/>`
-					if (slideItemObj.options.line.beginArrowType) strSlideXml += `<a:headEnd type="${slideItemObj.options.line.beginArrowType}"/>`
-					if (slideItemObj.options.line.endArrowType) strSlideXml += `<a:tailEnd type="${slideItemObj.options.line.endArrowType}"/>`
-					// FUTURE: `endArrowSize` < a: headEnd type = "arrow" w = "lg" len = "lg" /> 'sm' | 'med' | 'lg'(values are 1 - 9, making a 3x3 grid of w / len possibilities)
-					strSlideXml += '</a:ln>'
-				}
+				if (slideItemObj.options.line) strSlideXml += genXmlLine(slideItemObj.options.line)
 
 				// EFFECTS > SHADOW: REF: @see http://officeopenxml.com/drwSp-effects.php
 				if (slideItemObj.options.shadow && slideItemObj.options.shadow.type !== 'none') {
@@ -525,10 +533,13 @@ function slideObjectToXml (slide: PresSlide | SlideLayout): string {
 					slideItemObj.options.shadow.color = slideItemObj.options.shadow.color || DEF_TEXT_SHADOW.color
 
 					strSlideXml += '<a:effectLst>'
-					strSlideXml += ` <a:${slideItemObj.options.shadow.type}Shdw ${slideItemObj.options.shadow.type === 'outer' ? 'sx="100000" sy="100000" kx="0" ky="0" algn="bl" rotWithShape="0"' : ''} blurRad="${slideItemObj.options.shadow.blur}" dist="${slideItemObj.options.shadow.offset}" dir="${slideItemObj.options.shadow.angle}">`
-					strSlideXml += ` <a:srgbClr val="${slideItemObj.options.shadow.color}">`
-					strSlideXml += ` <a:alpha val="${slideItemObj.options.shadow.opacity}"/></a:srgbClr>`
-					strSlideXml += ' </a:outerShdw>'
+					strSlideXml += '<a:' + slideItemObj.options.shadow.type + 'Shdw'
+					strSlideXml += slideItemObj.options.shadow.type === 'outer' ? ' sx="100000" sy="100000" kx="0" ky="0" algn="bl" rotWithShape="0"' : ''
+					strSlideXml += ' blurRad="' + slideItemObj.options.shadow.blur + '"'
+					strSlideXml += ' dist="' + slideItemObj.options.shadow.offset + '" dir="' + slideItemObj.options.shadow.angle + '">'
+					strSlideXml += '<a:srgbClr val="' + slideItemObj.options.shadow.color + '">'
+					strSlideXml += '<a:alpha val="' + slideItemObj.options.shadow.opacity + '"/></a:srgbClr>'
+					strSlideXml += '</a:' + slideItemObj.options.shadow.type + 'Shdw>'
 					strSlideXml += '</a:effectLst>'
 				}
 
@@ -553,82 +564,118 @@ function slideObjectToXml (slide: PresSlide | SlideLayout): string {
 				strSlideXml += '</p:sp>'
 				break
 
-			case SLIDE_OBJECT_TYPES.image:
-				strSlideXml += '<p:pic>'
-				strSlideXml += '  <p:nvPicPr>'
-				strSlideXml += `<p:cNvPr id="${idx + 2}" name="${slideItemObj.options.objectName}" descr="${encodeXmlEntities(
-					slideItemObj.options.altText || slideItemObj.image
-				)}">`
-				if (slideItemObj.hyperlink?.url) {
-					strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
-					}"/>`
-				}
-				if (slideItemObj.hyperlink?.slide) {
-					strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
-					}" action="ppaction://hlinksldjump"/>`
-				}
-				strSlideXml += '    </p:cNvPr>'
-				strSlideXml += '    <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>'
-				strSlideXml += '    <p:nvPr>' + genXmlPlaceholder(placeholderObj) + '</p:nvPr>'
-				strSlideXml += '  </p:nvPicPr>'
-				strSlideXml += '<p:blipFill>'
-				// NOTE: This works for both cases: either `path` or `data` contains the SVG
-				if (
-					(slide._relsMedia || []).filter(rel => rel.rId === slideItemObj.imageRid)[0] &&
-					(slide._relsMedia || []).filter(rel => rel.rId === slideItemObj.imageRid)[0].extn === 'svg'
-				) {
-					strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid - 1}">`
-					strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
-					strSlideXml += ' <a:extLst>'
-					strSlideXml += '  <a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}">'
-					strSlideXml += `   <asvg:svgBlip xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main" r:embed="rId${slideItemObj.imageRid}"/>`
-					strSlideXml += '  </a:ext>'
-					strSlideXml += ' </a:extLst>'
-					strSlideXml += '</a:blip>'
-				} else {
-					strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid}">`
-					strSlideXml += slideItemObj.options.transparency ? `<a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
-					strSlideXml += '</a:blip>'
-				}
-				if (sizing?.type) {
-					const boxW = sizing.w ? getSmartParseNumber(sizing.w, 'X', slide._presLayout) : cx
-					const boxH = sizing.h ? getSmartParseNumber(sizing.h, 'Y', slide._presLayout) : cy
-					const boxX = getSmartParseNumber(sizing.x || 0, 'X', slide._presLayout)
-					const boxY = getSmartParseNumber(sizing.y || 0, 'Y', slide._presLayout)
+			case SLIDE_OBJECT_TYPES.image: {
+					const fillOverlayXmlString = genXmlFillOverlay(slideItemObj.options.fillOverlay)
+					const solidFillXmlString = genXmlImgSolidFill(slideItemObj.options.solidFill)
+					const hasEffects = slideItemObj.options.shadow || slideItemObj.options.blur
+					const imgBlur = slideItemObj.options.blur
 
-					strSlideXml += ImageSizingXml[sizing.type]({ w: imgWidth, h: imgHeight }, { w: boxW, h: boxH, x: boxX, y: boxY })
-					imgWidth = boxW
-					imgHeight = boxH
-				} else {
-					strSlideXml += '  <a:stretch><a:fillRect/></a:stretch>'
-				}
-				strSlideXml += '</p:blipFill>'
-				strSlideXml += '<p:spPr>'
-				strSlideXml += ' <a:xfrm' + locationAttr + '>'
-				strSlideXml += `  <a:off x="${x}" y="${y}"/>`
-				strSlideXml += `  <a:ext cx="${imgWidth}" cy="${imgHeight}"/>`
-				strSlideXml += ' </a:xfrm>'
-				strSlideXml += ` <a:prstGeom prst="${rounding ? 'ellipse' : 'rect'}"><a:avLst/></a:prstGeom>`
+					strSlideXml += '<p:pic>'
+					strSlideXml += '  <p:nvPicPr>'
+					strSlideXml += `<p:cNvPr id="${idx + 2}" name="${slideItemObj.options.objectName}" descr="${encodeXmlEntities(
+						slideItemObj.options.altText || slideItemObj.image
+					)}">`
+					if (slideItemObj.hyperlink?.url) {
+						strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
+						}"/>`
+					}
+					if (slideItemObj.hyperlink?.slide) {
+						strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
+						}" action="ppaction://hlinksldjump"/>`
+					}
+					strSlideXml += '    </p:cNvPr>'
+					strSlideXml += '    <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>'
+					strSlideXml += '    <p:nvPr>' + genXmlPlaceholder(placeholderObj) + '</p:nvPr>'
+					strSlideXml += '  </p:nvPicPr>'
+					strSlideXml += '<p:blipFill>'
+					// NOTE: This works for both cases: either `path` or `data` contains the SVG
+					if (
+						(slide._relsMedia || []).filter(rel => rel.rId === slideItemObj.imageRid)[0] &&
+						(slide._relsMedia || []).filter(rel => rel.rId === slideItemObj.imageRid)[0].extn === 'svg'
+					) {
+						strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid - 1}">`
+						strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
+						strSlideXml += fillOverlayXmlString
+						strSlideXml += imgBlur ? `<a:blur rad="${imgBlur.radius}"/>` : ''
+						strSlideXml += ' <a:extLst>'
+						strSlideXml += '  <a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}">'
+						strSlideXml += `   <asvg:svgBlip xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main" r:embed="rId${slideItemObj.imageRid}"/>`
+						strSlideXml += '  </a:ext>'
+						strSlideXml += ' </a:extLst>'
+						strSlideXml += '</a:blip>'
+					} else {
+						strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid}">`
+						strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
+						strSlideXml += fillOverlayXmlString
+						strSlideXml += imgBlur ? `<a:blur rad="${imgBlur.radius}"/>` : ''
+						strSlideXml += '</a:blip>'
+					}
+					if (sizing?.type) {
+						const boxW = sizing.w ? getSmartParseNumber(sizing.w, 'X', slide._presLayout) : cx
+						const boxH = sizing.h ? getSmartParseNumber(sizing.h, 'Y', slide._presLayout) : cy
+						const boxX = getSmartParseNumber(sizing.x || 0, 'X', slide._presLayout)
+						const boxY = getSmartParseNumber(sizing.y || 0, 'Y', slide._presLayout)
 
-				// EFFECTS > SHADOW: REF: @see http://officeopenxml.com/drwSp-effects.php
-				if (slideItemObj.options.shadow && slideItemObj.options.shadow.type !== 'none') {
-					slideItemObj.options.shadow.type = slideItemObj.options.shadow.type || 'outer'
-					slideItemObj.options.shadow.blur = valToPts(slideItemObj.options.shadow.blur || 8)
-					slideItemObj.options.shadow.offset = valToPts(slideItemObj.options.shadow.offset || 4)
-					slideItemObj.options.shadow.angle = Math.round((slideItemObj.options.shadow.angle || 270) * 60000)
-					slideItemObj.options.shadow.opacity = Math.round((slideItemObj.options.shadow.opacity || 0.75) * 100000)
-					slideItemObj.options.shadow.color = slideItemObj.options.shadow.color || DEF_TEXT_SHADOW.color
+						strSlideXml += ImageSizingXml[sizing.type]({ w: imgWidth, h: imgHeight }, { w: boxW, h: boxH, x: boxX, y: boxY })
+						imgWidth = boxW
+						imgHeight = boxH
+					} else {
+						strSlideXml += '  <a:stretch><a:fillRect/></a:stretch>'
+					}
+					strSlideXml += '</p:blipFill>'
+					strSlideXml += '<p:spPr>'
+					strSlideXml += ' <a:xfrm' + locationAttr + '>'
+					strSlideXml += `  <a:off x="${x}" y="${y}"/>`
+					strSlideXml += `  <a:ext cx="${imgWidth}" cy="${imgHeight}"/>`
+					strSlideXml += ' </a:xfrm>'
+					if (rounding) {
+						strSlideXml += ' <a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
+					} else if (slideItemObj.options.rectRadius > 0) {
+						const adj = Math.min(50000, Math.round((slideItemObj.options.rectRadius * EMU * 100000) / Math.min(imgWidth, imgHeight)))
+						strSlideXml += `<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst></a:prstGeom>`
+					} else {
+						strSlideXml += ' <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+					}
+					strSlideXml += solidFillXmlString
+					if (slideItemObj.options.line) strSlideXml += genXmlLine(slideItemObj.options.line)
 
-					strSlideXml += '<a:effectLst>'
-					strSlideXml += `<a:${slideItemObj.options.shadow.type}Shdw ${slideItemObj.options.shadow.type === 'outer' ? 'sx="100000" sy="100000" kx="0" ky="0" algn="bl" rotWithShape="0"' : ''} blurRad="${slideItemObj.options.shadow.blur}" dist="${slideItemObj.options.shadow.offset}" dir="${slideItemObj.options.shadow.angle}">`
-					strSlideXml += `<a:srgbClr val="${slideItemObj.options.shadow.color}">`
-					strSlideXml += `<a:alpha val="${slideItemObj.options.shadow.opacity}"/></a:srgbClr>`
-					strSlideXml += `</a:${slideItemObj.options.shadow.type}Shdw>`
-					strSlideXml += '</a:effectLst>'
-				}
-				strSlideXml += '</p:spPr>'
-				strSlideXml += '</p:pic>'
-				break
+					// EFFECTS
+					if (hasEffects) {
+						strSlideXml += '<a:effectLst>'
+
+						// EFFECTS > SHADOW REF: @see http://officeopenxml.com/drwSp-effects.php
+						if (slideItemObj.options.shadow && slideItemObj.options.shadow.type !== 'none') {
+							slideItemObj.options.shadow.type = slideItemObj.options.shadow.type || 'outer'
+							slideItemObj.options.shadow.blur = valToPts(slideItemObj.options.shadow.blur || 8)
+							slideItemObj.options.shadow.offset = valToPts(slideItemObj.options.shadow.offset || 4)
+							slideItemObj.options.shadow.angle = Math.round((slideItemObj.options.shadow.angle || 270) * 60000)
+							slideItemObj.options.shadow.opacity = Math.round((slideItemObj.options.shadow.opacity || 0.75) * 100000)
+							slideItemObj.options.shadow.color = slideItemObj.options.shadow.color || DEF_TEXT_SHADOW.color
+
+							strSlideXml += '<a:' + slideItemObj.options.shadow.type + 'Shdw'
+							strSlideXml += slideItemObj.options.shadow.type === 'outer' ? ' sx="100000" sy="100000" kx="0" ky="0" algn="bl" rotWithShape="0"' : ''
+							strSlideXml += ' blurRad="' + slideItemObj.options.shadow.blur + '"'
+							strSlideXml += ' dist="' + slideItemObj.options.shadow.offset + '" dir="' + slideItemObj.options.shadow.angle + '">'
+							strSlideXml += '<a:srgbClr val="' + slideItemObj.options.shadow.color + '">'
+							strSlideXml += '<a:alpha val="' + slideItemObj.options.shadow.opacity + '"/></a:srgbClr>'
+							strSlideXml += '</a:' + slideItemObj.options.shadow.type + 'Shdw>'
+						}
+
+						// EFFECTS > BLUR REF: @see http://officeopenxml.com/drwPic-effects.php
+						// Blur grow has to be applied to the bounding shape
+						// But should minimize compounding the blur effect on the image
+						if (imgBlur?.grow) {
+							imgBlur.radius = valToPts(imgBlur.radius / 10 || 8)
+							strSlideXml += `<a:blur rad="${imgBlur.radius}" grow="1"/>`
+						}
+
+						strSlideXml += '</a:effectLst>'
+					}
+
+					strSlideXml += '</p:spPr>'
+					strSlideXml += '</p:pic>'
+					break
+			}
 
 			case SLIDE_OBJECT_TYPES.media:
 				if (slideItemObj.mtype === 'online') {
@@ -928,7 +975,7 @@ function genXmlParagraphProperties (textObj: ISlideObject | TextProps, isDefault
 			paragraphPropXml += ` marL="${textObj.options.indentLevel && textObj.options.indentLevel > 0 ? bulletMarL + bulletMarL * textObj.options.indentLevel : bulletMarL
 			}" indent="-${bulletMarL}"`
 			strXmlBullet = `<a:buSzPct val="100000"/><a:buChar char="${BULLET_TYPES.DEFAULT}"/>`
-		} else if (!textObj.options.bullet) {
+		} else if (textObj.options.bullet === false) {
 			// We only add this when the user explicitely asks for no bullet, otherwise, it can override the master defaults!
 			paragraphPropXml += ' indent="0" marL="0"' // FIX: ISSUE#589 - specify zero indent and marL or default will be hanging paragraph
 			strXmlBullet = '<a:buNone/>'
@@ -963,8 +1010,8 @@ function genXmlTextRunProperties (opts: ObjectOptions | TextPropsOptions, isDefa
 	// BEGIN runProperties (ex: `<a:rPr lang="en-US" sz="1600" b="1" dirty="0">`)
 	runProps += '<' + runPropsTag + ' lang="' + (opts.lang ? opts.lang : 'en-US') + '"' + (opts.lang ? ' altLang="en-US"' : '')
 	runProps += opts.fontSize ? ` sz="${Math.round(opts.fontSize * 100)}"` : '' // NOTE: Use round so sizes like '7.5' wont cause corrupt presentations
-	runProps += opts?.bold ? ` b="${opts.bold ? '1' : '0'}"` : ''
-	runProps += opts?.italic ? ` i="${opts.italic ? '1' : '0'}"` : ''
+	runProps += Object.prototype.hasOwnProperty.call(opts, 'bold') ? ` b="${opts.bold ? 1 : 0}"` : ''
+	runProps += Object.prototype.hasOwnProperty.call(opts, 'italic') ? ` i="${opts.italic ? 1 : 0}"` : ''
 
 	runProps += opts?.strike ? ` strike="${typeof opts.strike === 'string' ? opts.strike : 'sngStrike'}"` : ''
 	if (typeof opts.underline === 'object' && opts.underline?.style) {
@@ -985,11 +1032,18 @@ function genXmlTextRunProperties (opts: ObjectOptions | TextPropsOptions, isDefa
 	runProps += opts.charSpacing ? ` spc="${Math.round(opts.charSpacing * 100)}" kern="0"` : '' // IMPORTANT: Also disable kerning; otherwise text won't actually expand
 	runProps += ' dirty="0">'
 	// Color / Font / Highlight / Outline are children of <a:rPr>, so add them now before closing the runProperties tag
-	if (opts.color || opts.fontFace || opts.outline || (typeof opts.underline === 'object' && opts.underline.color)) {
+	if (opts.color || opts.gradient || opts.fontFace || opts.outline || (typeof opts.underline === 'object' && opts.underline.color)) {
 		if (opts.outline && typeof opts.outline === 'object') {
 			runProps += `<a:ln w="${valToPts(opts.outline.size || 0.75)}">${genXmlColorSelection(opts.outline.color || 'FFFFFF')}</a:ln>`
 		}
-		if (opts.color) runProps += genXmlColorSelection({ color: opts.color, transparency: opts.transparency })
+		// gradient always wins in a case we get both color and gradient
+		// thus, here we have a known bug (PITCH-1492) that inline text will be rendered as gradient
+		// if we have block level text gradient and inline text with solid colour
+		if (opts.color || opts.gradient) runProps += genXmlColorSelection({
+			color: opts.color,
+			transparency: opts.transparency,
+			gradient: opts.gradient
+		})
 		if (opts.highlight) runProps += `<a:highlight>${createColorElement(opts.highlight)}</a:highlight>`
 		if (typeof opts.underline === 'object' && opts.underline.color) runProps += `<a:uFill>${genXmlColorSelection(opts.underline.color)}</a:uFill>`
 		if (opts.glow) runProps += `<a:effectLst>${createGlowElement(opts.glow, DEF_TEXT_GLOW)}</a:effectLst>`
@@ -1127,6 +1181,36 @@ function genXmlBodyProperties (slideObject: ISlideObject | TableCell): string {
 
 	// LAST: Return Close _bodyProp
 	return slideObject._type === SLIDE_OBJECT_TYPES.tablecell ? '<a:bodyPr/>' : bodyProperties
+}
+
+/**
+ * Generate XML for fill overlay effect for an image
+ * @param FillOverlayProps
+ */
+function genXmlFillOverlay(fillOverlay: FillOverlayProps): string {
+	return fillOverlay
+		? ` <a:fillOverlay blend="${fillOverlay.blend}">
+      <a:solidFill>
+          <a:srgbClr val="${fillOverlay.color}">
+            <a:alpha val="${Math.round((100 - (fillOverlay.transparency || 0)) * 1000)}"/>
+         </a:srgbClr>
+      </a:solidFill>
+      </a:fillOverlay>`
+		: ''
+}
+
+/**
+ * Generate XML for solid fill beneath an image
+ * @param SolidFillProps
+ */
+function genXmlImgSolidFill(solidFill: SolidFillProps): string {
+	return solidFill
+		? ` <a:solidFill>
+                <a:srgbClr val="${solidFill.color}">
+                    <a:alpha val="${Math.round((100 - solidFill.transparency) * 1000)}"/>
+                </a:srgbClr>
+            </a:solidFill>`
+		: ''
 }
 
 /**
@@ -1284,7 +1368,7 @@ export function genXmlTextBody (slideObj: ISlideObject | TableCell): string {
 			textObj.options.paraSpaceAfter = textObj.options.paraSpaceAfter || opts.paraSpaceAfter
 			paragraphPropXml = genXmlParagraphProperties(textObj, false)
 
-			strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', '') // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
+			if (idx === 0) strSlideXml += paragraphPropXml.replace('<a:pPr></a:pPr>', '') // IMPORTANT: Empty "pPr" blocks will generate needs-repair/corrupt msg
 			// C: Inherit any main options (color, fontSize, etc.)
 			// NOTE: We only pass the text.options to genXmlTextRun (not the Slide.options),
 			// so the run building function cant just fallback to Slide.color, therefore, we need to do that here before passing options below.
@@ -1292,7 +1376,7 @@ export function genXmlTextBody (slideObj: ISlideObject | TableCell): string {
 			Object.entries(opts).filter(([key]) => !(textObj.options.hyperlink && key === 'color')).forEach(([key, val]) => {
 				// if (textObj.options.hyperlink && key === 'color') null
 				// NOTE: This loop will pick up unecessary keys (`x`, etc.), but it doesnt hurt anything
-				if (key !== 'bullet' && !textObj.options[key]) textObj.options[key] = val
+				if (key !== 'bullet' && textObj.options?.[key] === undefined) textObj.options[key] = val
 			})
 
 			// D: Add formatted textrun
@@ -1384,6 +1468,7 @@ export function makeXmlContTypes (slides: PresSlide[], slideLayouts: SlideLayout
 	strXml += '<Default Extension="jpeg" ContentType="image/jpeg"/>'
 	strXml += '<Default Extension="jpg" ContentType="image/jpg"/>'
 	strXml += '<Default Extension="svg" ContentType="image/svg+xml"/>'
+	strXml += '<Default Extension="fntdata" ContentType="application/x-fontdata"/>'
 
 	// STEP 1: Add standard/any media types used in Presentation
 	strXml += '<Default Extension="png" ContentType="image/png"/>'
@@ -1529,7 +1614,7 @@ export function makeXmlCore (title: string, subject: string, author: string, rev
  * @param {PresSlide[]} slides - Presenation Slides
  * @returns XML
  */
-export function makeXmlPresentationRels (slides: PresSlide[]): string {
+export function makeXmlPresentationRels (slides: PresSlide[], fonts: PresFont[]): string {
 	let intRelNum = 1
 	let strXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + CRLF
 	strXml += '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
@@ -1537,14 +1622,33 @@ export function makeXmlPresentationRels (slides: PresSlide[]): string {
 	for (let idx = 1; idx <= slides.length; idx++) {
 		strXml += `<Relationship Id="rId${++intRelNum}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${idx}.xml"/>`
 	}
+
 	intRelNum++
 	strXml +=
-		`<Relationship Id="rId${intRelNum + 0}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="notesMasters/notesMaster1.xml"/>` +
-		`<Relationship Id="rId${intRelNum + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps" Target="presProps.xml"/>` +
-		`<Relationship Id="rId${intRelNum + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/viewProps" Target="viewProps.xml"/>` +
-		`<Relationship Id="rId${intRelNum + 3}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>` +
-		`<Relationship Id="rId${intRelNum + 4}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tableStyles" Target="tableStyles.xml"/>` +
-		'</Relationships>'
+		'<Relationship Id="rId' +
+		intRelNum++ +
+		'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster" Target="notesMasters/notesMaster1.xml"/>' +
+		'<Relationship Id="rId' +
+		intRelNum++ +
+		'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/presProps" Target="presProps.xml"/>' +
+		'<Relationship Id="rId' +
+		intRelNum++ +
+		'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/viewProps" Target="viewProps.xml"/>' +
+		'<Relationship Id="rId' +
+		intRelNum++ +
+		'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>' +
+		'<Relationship Id="rId' +
+		intRelNum++ +
+		'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/tableStyles" Target="tableStyles.xml"/>'
+
+	fonts.forEach(font => {
+		font.styles.forEach(style => {
+			style.rel.id = `rId${intRelNum}` // populate rel id
+			strXml += `<Relationship Id="rId${intRelNum++}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/font" Target="${style.rel.target}"/>`
+		})
+	})
+
+	strXml += '</Relationships>'
 
 	return strXml
 }
@@ -1801,6 +1905,22 @@ export function makeXmlPresentation (pres: IPresentationProps): string {
 	// STEP 4: Add sizes
 	strXml += `<p:sldSz cx="${pres.presLayout.width}" cy="${pres.presLayout.height}"/>`
 	strXml += `<p:notesSz cx="${pres.presLayout.height}" cy="${pres.presLayout.width}"/>`
+
+	// STEP: Add embedded fonts
+	if (pres.fonts.length > 0) {
+		strXml += '<p:embeddedFontLst>'
+
+		pres.fonts.forEach(font => {
+			strXml += '<p:embeddedFont>'
+			strXml += `<p:font typeface="${font.name}"/>`
+			font.styles.forEach(style => {
+				strXml += `<p:${style.name} r:id="${style.rel.id}"/>`
+			})
+			strXml += '</p:embeddedFont>'
+		})
+
+		strXml += '</p:embeddedFontLst>'
+	}
 
 	// STEP 5: Add text styles
 	strXml += '<p:defaultTextStyle>'
