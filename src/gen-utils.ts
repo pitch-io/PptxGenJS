@@ -192,9 +192,9 @@ function createGradientElements(gradient: Gradient, internalElements: string): s
 		stops = gradient.stops
 
 	if (!isGradient(gradient)) {
-		console.warn(`This is not a valid gradient:`, gradient)
+		console.warn('This is not a valid gradient:', gradient)
 		console.warn(`Fallback to default gradient with "${SchemeColor.background1}" and "${SchemeColor.background2}".`)
-		console.warn(`Please provide a valid gradient e.g. { angle:0, stops: { 0:"#FFFFFF", 100:"#000000" } }.`)
+		console.warn('Please provide a valid gradient e.g. { angle:0, stops: { 0:"#FFFFFF", 100:"#000000" } }.')
 		stops = { 0: SchemeColor.background1, 100: SchemeColor.background2 }
 	}
 
@@ -217,9 +217,9 @@ function createGradientList(stops: GradientStops, internalElements: string): str
 		const xml =
 			typeof stop === 'object'
 				? createColorElement(
-						stop.color,
-						typeof stop.transparency === 'number' ? `<a:alpha val="${Math.round((100 - stop.transparency) * 1000)}"/>` : internalElements
-				  )
+					stop.color,
+					typeof stop.transparency === 'number' ? `<a:alpha val="${Math.round((100 - stop.transparency) * 1000)}"/>` : internalElements
+				)
 				: createColorElement(stop, internalElements)
 		return `<a:gs pos="${Number(pos) * multiplier}">${xml}</a:gs>`
 	})
@@ -409,7 +409,7 @@ export function validateFillOverlayProps(props: FillOverlayProps): FillOverlayPr
 
 	// If blend mode is invalid, set to default 'over'
 	if (props && blendModes.indexOf(props?.blend) === -1) {
-		console.warn(`Warning: fillOverlay.blend mode was invalid and is now set to default 'over'\nValid modes are 'darken', 'lighten', 'mult', 'screen', 'over'`)
+		console.warn('Warning: fillOverlay.blend mode was invalid and is now set to default \'over\'\nValid modes are \'darken\', \'lighten\', \'mult\', \'screen\', \'over\'')
 		props.blend = 'over'
 	}
 

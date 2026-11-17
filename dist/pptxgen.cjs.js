@@ -1,4 +1,4 @@
-/* PptxGenJS 4.0.1 @ 2026-11-17T10:42:58.194Z */
+/* PptxGenJS 4.0.1 @ 2026-11-17T12:57:53.789Z */
 'use strict';
 
 var JSZip = require('jszip');
@@ -790,9 +790,9 @@ function createGlowElement(options, defaults) {
 function createGradientElements(gradient, internalElements) {
     let strXml = '', stops = gradient.stops;
     if (!isGradient(gradient)) {
-        console.warn(`This is not a valid gradient:`, gradient);
+        console.warn('This is not a valid gradient:', gradient);
         console.warn(`Fallback to default gradient with "${SchemeColor.background1}" and "${SchemeColor.background2}".`);
-        console.warn(`Please provide a valid gradient e.g. { angle:0, stops: { 0:"#FFFFFF", 100:"#000000" } }.`);
+        console.warn('Please provide a valid gradient e.g. { angle:0, stops: { 0:"#FFFFFF", 100:"#000000" } }.');
         stops = { 0: SchemeColor.background1, 100: SchemeColor.background2 };
     }
     strXml += createGradientList(stops, internalElements);
@@ -976,7 +976,7 @@ function validateFillOverlayProps(props) {
     }
     // If blend mode is invalid, set to default 'over'
     if (props && blendModes.indexOf(props === null || props === void 0 ? void 0 : props.blend) === -1) {
-        console.warn(`Warning: fillOverlay.blend mode was invalid and is now set to default 'over'\nValid modes are 'darken', 'lighten', 'mult', 'screen', 'over'`);
+        console.warn('Warning: fillOverlay.blend mode was invalid and is now set to default \'over\'\nValid modes are \'darken\', \'lighten\', \'mult\', \'screen\', \'over\'');
         props.blend = 'over';
     }
     return props;
@@ -4961,7 +4961,7 @@ const loadFontStyle = (style) => new Promise((resolve, reject) => {
         };
         reader.readAsDataURL(xhr.response);
     };
-    xhr.onerror = ex => {
+    xhr.onerror = () => {
         reject(`ERROR! Unable to load font (xhr.onerror): ${style.path}`);
     };
     xhr.open('GET', style.path);

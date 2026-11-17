@@ -565,116 +565,116 @@ function slideObjectToXml (slide: PresSlide | SlideLayout): string {
 				break
 
 			case SLIDE_OBJECT_TYPES.image: {
-					const fillOverlayXmlString = genXmlFillOverlay(slideItemObj.options.fillOverlay)
-					const solidFillXmlString = genXmlImgSolidFill(slideItemObj.options.solidFill)
-					const hasEffects = slideItemObj.options.shadow || slideItemObj.options.blur
-					const imgBlur = slideItemObj.options.blur
+				const fillOverlayXmlString = genXmlFillOverlay(slideItemObj.options.fillOverlay)
+				const solidFillXmlString = genXmlImgSolidFill(slideItemObj.options.solidFill)
+				const hasEffects = slideItemObj.options.shadow || slideItemObj.options.blur
+				const imgBlur = slideItemObj.options.blur
 
-					strSlideXml += '<p:pic>'
-					strSlideXml += '  <p:nvPicPr>'
-					strSlideXml += `<p:cNvPr id="${idx + 2}" name="${slideItemObj.options.objectName}" descr="${encodeXmlEntities(
-						slideItemObj.options.altText || slideItemObj.image
-					)}">`
-					if (slideItemObj.hyperlink?.url) {
-						strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
-						}"/>`
-					}
-					if (slideItemObj.hyperlink?.slide) {
-						strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
-						}" action="ppaction://hlinksldjump"/>`
-					}
-					strSlideXml += '    </p:cNvPr>'
-					strSlideXml += '    <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>'
-					strSlideXml += '    <p:nvPr>' + genXmlPlaceholder(placeholderObj) + '</p:nvPr>'
-					strSlideXml += '  </p:nvPicPr>'
-					strSlideXml += '<p:blipFill>'
-					// NOTE: This works for both cases: either `path` or `data` contains the SVG
-					if (
-						(slide._relsMedia || []).filter(rel => rel.rId === slideItemObj.imageRid)[0] &&
+				strSlideXml += '<p:pic>'
+				strSlideXml += '  <p:nvPicPr>'
+				strSlideXml += `<p:cNvPr id="${idx + 2}" name="${slideItemObj.options.objectName}" descr="${encodeXmlEntities(
+					slideItemObj.options.altText || slideItemObj.image
+				)}">`
+				if (slideItemObj.hyperlink?.url) {
+					strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
+					}"/>`
+				}
+				if (slideItemObj.hyperlink?.slide) {
+					strSlideXml += `<a:hlinkClick r:id="rId${slideItemObj.hyperlink._rId}" tooltip="${slideItemObj.hyperlink.tooltip ? encodeXmlEntities(slideItemObj.hyperlink.tooltip) : ''
+					}" action="ppaction://hlinksldjump"/>`
+				}
+				strSlideXml += '    </p:cNvPr>'
+				strSlideXml += '    <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>'
+				strSlideXml += '    <p:nvPr>' + genXmlPlaceholder(placeholderObj) + '</p:nvPr>'
+				strSlideXml += '  </p:nvPicPr>'
+				strSlideXml += '<p:blipFill>'
+				// NOTE: This works for both cases: either `path` or `data` contains the SVG
+				if (
+					(slide._relsMedia || []).filter(rel => rel.rId === slideItemObj.imageRid)[0] &&
 						(slide._relsMedia || []).filter(rel => rel.rId === slideItemObj.imageRid)[0].extn === 'svg'
-					) {
-						strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid - 1}">`
-						strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
-						strSlideXml += fillOverlayXmlString
-						strSlideXml += imgBlur ? `<a:blur rad="${imgBlur.radius}"/>` : ''
-						strSlideXml += ' <a:extLst>'
-						strSlideXml += '  <a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}">'
-						strSlideXml += `   <asvg:svgBlip xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main" r:embed="rId${slideItemObj.imageRid}"/>`
-						strSlideXml += '  </a:ext>'
-						strSlideXml += ' </a:extLst>'
-						strSlideXml += '</a:blip>'
-					} else {
-						strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid}">`
-						strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
-						strSlideXml += fillOverlayXmlString
-						strSlideXml += imgBlur ? `<a:blur rad="${imgBlur.radius}"/>` : ''
-						strSlideXml += '</a:blip>'
-					}
-					if (sizing?.type) {
-						const boxW = sizing.w ? getSmartParseNumber(sizing.w, 'X', slide._presLayout) : cx
-						const boxH = sizing.h ? getSmartParseNumber(sizing.h, 'Y', slide._presLayout) : cy
-						const boxX = getSmartParseNumber(sizing.x || 0, 'X', slide._presLayout)
-						const boxY = getSmartParseNumber(sizing.y || 0, 'Y', slide._presLayout)
+				) {
+					strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid - 1}">`
+					strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
+					strSlideXml += fillOverlayXmlString
+					strSlideXml += imgBlur ? `<a:blur rad="${imgBlur.radius}"/>` : ''
+					strSlideXml += ' <a:extLst>'
+					strSlideXml += '  <a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}">'
+					strSlideXml += `   <asvg:svgBlip xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main" r:embed="rId${slideItemObj.imageRid}"/>`
+					strSlideXml += '  </a:ext>'
+					strSlideXml += ' </a:extLst>'
+					strSlideXml += '</a:blip>'
+				} else {
+					strSlideXml += `<a:blip r:embed="rId${slideItemObj.imageRid}">`
+					strSlideXml += slideItemObj.options.transparency ? ` <a:alphaModFix amt="${Math.round((100 - slideItemObj.options.transparency) * 1000)}"/>` : ''
+					strSlideXml += fillOverlayXmlString
+					strSlideXml += imgBlur ? `<a:blur rad="${imgBlur.radius}"/>` : ''
+					strSlideXml += '</a:blip>'
+				}
+				if (sizing?.type) {
+					const boxW = sizing.w ? getSmartParseNumber(sizing.w, 'X', slide._presLayout) : cx
+					const boxH = sizing.h ? getSmartParseNumber(sizing.h, 'Y', slide._presLayout) : cy
+					const boxX = getSmartParseNumber(sizing.x || 0, 'X', slide._presLayout)
+					const boxY = getSmartParseNumber(sizing.y || 0, 'Y', slide._presLayout)
 
-						strSlideXml += ImageSizingXml[sizing.type]({ w: imgWidth, h: imgHeight }, { w: boxW, h: boxH, x: boxX, y: boxY })
-						imgWidth = boxW
-						imgHeight = boxH
-					} else {
-						strSlideXml += '  <a:stretch><a:fillRect/></a:stretch>'
-					}
-					strSlideXml += '</p:blipFill>'
-					strSlideXml += '<p:spPr>'
-					strSlideXml += ' <a:xfrm' + locationAttr + '>'
-					strSlideXml += `  <a:off x="${x}" y="${y}"/>`
-					strSlideXml += `  <a:ext cx="${imgWidth}" cy="${imgHeight}"/>`
-					strSlideXml += ' </a:xfrm>'
-					if (rounding) {
-						strSlideXml += ' <a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
-					} else if (slideItemObj.options.rectRadius > 0) {
-						const adj = Math.min(50000, Math.round((slideItemObj.options.rectRadius * EMU * 100000) / Math.min(imgWidth, imgHeight)))
-						strSlideXml += `<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst></a:prstGeom>`
-					} else {
-						strSlideXml += ' <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
-					}
-					strSlideXml += solidFillXmlString
-					if (slideItemObj.options.line) strSlideXml += genXmlLine(slideItemObj.options.line)
+					strSlideXml += ImageSizingXml[sizing.type]({ w: imgWidth, h: imgHeight }, { w: boxW, h: boxH, x: boxX, y: boxY })
+					imgWidth = boxW
+					imgHeight = boxH
+				} else {
+					strSlideXml += '  <a:stretch><a:fillRect/></a:stretch>'
+				}
+				strSlideXml += '</p:blipFill>'
+				strSlideXml += '<p:spPr>'
+				strSlideXml += ' <a:xfrm' + locationAttr + '>'
+				strSlideXml += `  <a:off x="${x}" y="${y}"/>`
+				strSlideXml += `  <a:ext cx="${imgWidth}" cy="${imgHeight}"/>`
+				strSlideXml += ' </a:xfrm>'
+				if (rounding) {
+					strSlideXml += ' <a:prstGeom prst="ellipse"><a:avLst/></a:prstGeom>'
+				} else if (slideItemObj.options.rectRadius > 0) {
+					const adj = Math.min(50000, Math.round((slideItemObj.options.rectRadius * EMU * 100000) / Math.min(imgWidth, imgHeight)))
+					strSlideXml += `<a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst></a:prstGeom>`
+				} else {
+					strSlideXml += ' <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+				}
+				strSlideXml += solidFillXmlString
+				if (slideItemObj.options.line) strSlideXml += genXmlLine(slideItemObj.options.line)
 
-					// EFFECTS
-					if (hasEffects) {
-						strSlideXml += '<a:effectLst>'
+				// EFFECTS
+				if (hasEffects) {
+					strSlideXml += '<a:effectLst>'
 
-						// EFFECTS > SHADOW REF: @see http://officeopenxml.com/drwSp-effects.php
-						if (slideItemObj.options.shadow && slideItemObj.options.shadow.type !== 'none') {
-							slideItemObj.options.shadow.type = slideItemObj.options.shadow.type || 'outer'
-							slideItemObj.options.shadow.blur = valToPts(slideItemObj.options.shadow.blur || 8)
-							slideItemObj.options.shadow.offset = valToPts(slideItemObj.options.shadow.offset || 4)
-							slideItemObj.options.shadow.angle = Math.round((slideItemObj.options.shadow.angle || 270) * 60000)
-							slideItemObj.options.shadow.opacity = Math.round((slideItemObj.options.shadow.opacity || 0.75) * 100000)
-							slideItemObj.options.shadow.color = slideItemObj.options.shadow.color || DEF_TEXT_SHADOW.color
+					// EFFECTS > SHADOW REF: @see http://officeopenxml.com/drwSp-effects.php
+					if (slideItemObj.options.shadow && slideItemObj.options.shadow.type !== 'none') {
+						slideItemObj.options.shadow.type = slideItemObj.options.shadow.type || 'outer'
+						slideItemObj.options.shadow.blur = valToPts(slideItemObj.options.shadow.blur || 8)
+						slideItemObj.options.shadow.offset = valToPts(slideItemObj.options.shadow.offset || 4)
+						slideItemObj.options.shadow.angle = Math.round((slideItemObj.options.shadow.angle || 270) * 60000)
+						slideItemObj.options.shadow.opacity = Math.round((slideItemObj.options.shadow.opacity || 0.75) * 100000)
+						slideItemObj.options.shadow.color = slideItemObj.options.shadow.color || DEF_TEXT_SHADOW.color
 
-							strSlideXml += '<a:' + slideItemObj.options.shadow.type + 'Shdw'
-							strSlideXml += slideItemObj.options.shadow.type === 'outer' ? ' sx="100000" sy="100000" kx="0" ky="0" algn="bl" rotWithShape="0"' : ''
-							strSlideXml += ' blurRad="' + slideItemObj.options.shadow.blur + '"'
-							strSlideXml += ' dist="' + slideItemObj.options.shadow.offset + '" dir="' + slideItemObj.options.shadow.angle + '">'
-							strSlideXml += '<a:srgbClr val="' + slideItemObj.options.shadow.color + '">'
-							strSlideXml += '<a:alpha val="' + slideItemObj.options.shadow.opacity + '"/></a:srgbClr>'
-							strSlideXml += '</a:' + slideItemObj.options.shadow.type + 'Shdw>'
-						}
-
-						// EFFECTS > BLUR REF: @see http://officeopenxml.com/drwPic-effects.php
-						// Blur grow has to be applied to the bounding shape
-						// But should minimize compounding the blur effect on the image
-						if (imgBlur?.grow) {
-							imgBlur.radius = valToPts(imgBlur.radius / 10 || 8)
-							strSlideXml += `<a:blur rad="${imgBlur.radius}" grow="1"/>`
-						}
-
-						strSlideXml += '</a:effectLst>'
+						strSlideXml += '<a:' + slideItemObj.options.shadow.type + 'Shdw'
+						strSlideXml += slideItemObj.options.shadow.type === 'outer' ? ' sx="100000" sy="100000" kx="0" ky="0" algn="bl" rotWithShape="0"' : ''
+						strSlideXml += ' blurRad="' + slideItemObj.options.shadow.blur + '"'
+						strSlideXml += ' dist="' + slideItemObj.options.shadow.offset + '" dir="' + slideItemObj.options.shadow.angle + '">'
+						strSlideXml += '<a:srgbClr val="' + slideItemObj.options.shadow.color + '">'
+						strSlideXml += '<a:alpha val="' + slideItemObj.options.shadow.opacity + '"/></a:srgbClr>'
+						strSlideXml += '</a:' + slideItemObj.options.shadow.type + 'Shdw>'
 					}
 
-					strSlideXml += '</p:spPr>'
-					strSlideXml += '</p:pic>'
-					break
+					// EFFECTS > BLUR REF: @see http://officeopenxml.com/drwPic-effects.php
+					// Blur grow has to be applied to the bounding shape
+					// But should minimize compounding the blur effect on the image
+					if (imgBlur?.grow) {
+						imgBlur.radius = valToPts(imgBlur.radius / 10 || 8)
+						strSlideXml += `<a:blur rad="${imgBlur.radius}" grow="1"/>`
+					}
+
+					strSlideXml += '</a:effectLst>'
+				}
+
+				strSlideXml += '</p:spPr>'
+				strSlideXml += '</p:pic>'
+				break
 			}
 
 			case SLIDE_OBJECT_TYPES.media:

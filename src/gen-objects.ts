@@ -838,11 +838,11 @@ export function addTableDefinition(
 		[0, 1, 2, 3].forEach(idx => {
 			opt.border[idx] = opt.border[idx]
 				? {
-						type: opt.border[idx].type || DEF_CELL_BORDER.type,
-						color: opt.border[idx].color || DEF_CELL_BORDER.color,
-						pt: opt.border[idx].pt || DEF_CELL_BORDER.pt,
-						transparency: opt.border[idx].transparency || DEF_CELL_BORDER.transparency,
-				  }
+					type: opt.border[idx].type || DEF_CELL_BORDER.type,
+					color: opt.border[idx].color || DEF_CELL_BORDER.color,
+					pt: opt.border[idx].pt || DEF_CELL_BORDER.pt,
+					transparency: opt.border[idx].transparency || DEF_CELL_BORDER.transparency,
+				}
 				: { type: 'none' }
 		})
 	}

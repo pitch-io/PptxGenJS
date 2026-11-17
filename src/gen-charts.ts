@@ -1498,7 +1498,7 @@ function makeChartType (chartType: CHART_NAME, data: IOptsChartData[], opts: ICh
 			strXml += '<c:ser>'
 			if (opts.chartPieExplosion && Number.isInteger(opts.chartPieExplosion)) {
 				strXml += '  <c:explosion val="' + opts.chartPieExplosion + '"/>'
-			}			
+			}
 			strXml += '  <c:idx val="0"/>'
 			strXml += '  <c:order val="0"/>'
 			strXml += '  <c:tx>'

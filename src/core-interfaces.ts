@@ -635,7 +635,7 @@ export interface ImageProps extends PositionProps, DataOrPathProps, ObjectNamePr
 	 * @default null
 	 * @example { color: 'FF0000',
 	 *            transparency: 25,
-	 * 			  blend: 'screen' }
+	 *            blend: 'screen' }
 	 */
 	fillOverlay?: FillOverlayProps
 	/**
