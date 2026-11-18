@@ -95,6 +95,22 @@ describe('theme.fontSchemeName', () => {
 	})
 })
 
+describe('theme.headFontFace / bodyFontFace', () => {
+	it('writes the face for latin, ea and cs scripts', async () => {
+		const { theme } = await parts(makePres(pres => (pres.theme = { headFontFace: 'Inter & Co', bodyFontFace: 'Noto Sans' })))
+
+		expect(theme).toContain('<a:majorFont><a:latin typeface="Inter &amp; Co"/><a:ea typeface="Inter &amp; Co"/><a:cs typeface="Inter &amp; Co"/>')
+		expect(theme).toContain('<a:minorFont><a:latin typeface="Noto Sans"/><a:ea typeface="Noto Sans"/><a:cs typeface="Noto Sans"/>')
+	})
+
+	it('keeps the Office faces when unset', async () => {
+		const { theme } = await parts(makePres())
+
+		expect(theme).toContain('<a:majorFont><a:latin typeface="Calibri Light" panose="020F0302020204030204"/><a:ea typeface=""/><a:cs typeface=""/>')
+		expect(theme).toContain('<a:minorFont><a:latin typeface="Calibri" panose="020F0502020204030204"/><a:ea typeface=""/><a:cs typeface=""/>')
+	})
+})
+
 describe('textStyles', () => {
 	it('writes title, body and other styles into the master', async () => {
 		const { master } = await parts(
