@@ -78,6 +78,11 @@ declare class PptxGenJS {
 	 */
 	theme: PptxGenJS.ThemeProps
 	/**
+	 * Master text styles and default text style
+	 * @type {TextStylesProps}
+	 */
+	textStyles: PptxGenJS.TextStylesProps
+	/**
 	 * Presentation name
 	 * @type {string}
 	 */
@@ -1300,6 +1305,59 @@ declare namespace PptxGenJS {
 		 * @default 'Calibri'
 		 */
 		bodyFontFace?: string
+		/**
+		 * Theme name, also used as the color scheme name
+		 * @default 'Office Theme'
+		 */
+		name?: string
+		/**
+		 * Font scheme name
+		 * @default the color scheme name ('Office' when `name` is not set)
+		 */
+		fontSchemeName?: string
+		/**
+		 * Color scheme slots (hex without hash); omitted slots keep the Office colors
+		 * @example { dk1: '1A1A1A', lt1: 'FFFFFF', accent1: 'FF5A00' }
+		 */
+		colors?: ThemeColors
+	}
+	export type ThemeColorSlot = 'dk1' | 'lt1' | 'dk2' | 'lt2' | 'accent1' | 'accent2' | 'accent3' | 'accent4' | 'accent5' | 'accent6' | 'hlink' | 'folHlink'
+	export type ThemeColors = Partial<Record<ThemeColorSlot, HexColor>>
+	export interface TextStyleProps {
+		/**
+		 * Font face, or a theme font reference
+		 * @example '+mj-lt' // theme major (heading) font
+		 * @example '+mn-lt' // theme minor (body) font
+		 */
+		fontFace?: string
+		/**
+		 * Font size (points)
+		 */
+		fontSize?: number
+		/**
+		 * Text color: hex or scheme color
+		 * @example 'accent1'
+		 */
+		color?: Color
+		bold?: boolean
+		/**
+		 * Bullet color: hex or scheme color (body style only)
+		 */
+		bulletColor?: Color
+	}
+	/**
+	 * Master text styles and the presentation default text style.
+	 * Omitted styles and values keep the PptxGenJS defaults.
+	 */
+	export interface TextStylesProps {
+		/** Title placeholders (`p:titleStyle`) */
+		title?: TextStyleProps
+		/** Body placeholders (`p:bodyStyle`), all levels */
+		body?: TextStyleProps
+		/** Other text, e.g. text boxes on the master (`p:otherStyle`), all levels */
+		other?: TextStyleProps
+		/** `p:defaultTextStyle` in presentation.xml, all levels */
+		default?: TextStyleProps
 	}
 
 	// image / media ==================================================================================

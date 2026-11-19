@@ -89,6 +89,7 @@ import {
 	SlideMasterProps,
 	SlideNumberProps,
 	TableToSlidesProps,
+	TextStylesProps,
 	ThemeProps,
 	WriteBaseProps,
 	WriteFileProps,
@@ -202,6 +203,18 @@ export default class PptxGenJS implements IPresentationProps {
 
 	public get theme(): ThemeProps {
 		return this._theme
+	}
+
+	/**
+	 * @type {TextStylesProps}
+	 */
+	private _textStyles: TextStylesProps
+	public set textStyles(value: TextStylesProps) {
+		this._textStyles = value
+	}
+
+	public get textStyles(): TextStylesProps {
+		return this._textStyles
 	}
 
 	/**
@@ -569,7 +582,7 @@ export default class PptxGenJS implements IPresentationProps {
 				zip.file(`ppt/notesSlides/notesSlide${idx + 1}.xml`, genXml.makeXmlNotesSlide(slide))
 				zip.file(`ppt/notesSlides/_rels/notesSlide${idx + 1}.xml.rels`, genXml.makeXmlNotesSlideRel(idx + 1))
 			})
-			zip.file('ppt/slideMasters/slideMaster1.xml', genXml.makeXmlMaster(this.masterSlide, this.slideLayouts))
+			zip.file('ppt/slideMasters/slideMaster1.xml', genXml.makeXmlMaster(this.masterSlide, this.slideLayouts, this.textStyles))
 			zip.file('ppt/slideMasters/_rels/slideMaster1.xml.rels', genXml.makeXmlMasterRel(this.masterSlide, this.slideLayouts))
 			zip.file('ppt/notesMasters/notesMaster1.xml', genXml.makeXmlNotesMaster())
 			zip.file('ppt/notesMasters/_rels/notesMaster1.xml.rels', genXml.makeXmlNotesMasterRel())
