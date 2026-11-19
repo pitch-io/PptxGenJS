@@ -10,18 +10,34 @@ import { PresSlide, SlideLayout, ISlideRelMedia } from './core-interfaces'
  * @param {PresSlide | SlideLayout} layout - slide layout
  * @return {Promise} promise
  */
-export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Promise<string>[] {
-	const fs = typeof require !== 'undefined' && typeof window === 'undefined' ? require('fs') : null // NodeJS
-	const https = typeof require !== 'undefined' && typeof window === 'undefined' ? require('https') : null // NodeJS
-	let imageProms: Promise<string>[] = []
+export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Array<Promise<string>> {
+	// STEP 1: Detect real Node runtime once
+	const isNode = typeof process !== 'undefined' && !!process.versions?.node && process.release?.name === 'node'
+	// These will be filled only when we’re in Node
+	let fs: typeof import('node:fs') | undefined
+	let https: typeof import('node:https') | undefined
+
+	// STEP 2: Lazy-load Node built-ins if needed
+	const loadNodeDeps = isNode
+		? async () => {
+			; ({ default: fs } = await import('node:fs')); ({ default: https } = await import('node:https'))
+		}
+		: async () => { }
+	// Immediately start it when we know we’re in Node
+	if (isNode) loadNodeDeps()
+
+	// STEP 3: Prepare promises list
+	const imageProms: Array<Promise<string>> = []
 
 	// A: Capture all audio/image/video candidates for encoding (filtering online/pre-encoded)
-	let candidateRels = layout._relsMedia.filter(rel => rel.type !== 'online' && !rel.data && (!rel.path || (rel.path && rel.path.indexOf('preencoded') === -1)))
+	const candidateRels = layout._relsMedia.filter(
+		rel => rel.type !== 'online' && !rel.data && (!rel.path || (rel.path && !rel.path.includes('preencoded')))
+	)
 
-	// B: PERF: Mark dupes (same `path`) so that we dont load same media over-and-over
-	let unqPaths: string[] = []
+	// B: PERF: Mark dupes (same `path`) to avoid loading the same media over-and-over!
+	const unqPaths: string[] = []
 	candidateRels.forEach(rel => {
-		if (unqPaths.indexOf(rel.path) === -1) {
+		if (!unqPaths.includes(rel.path)) {
 			rel.isDuplicate = false
 			unqPaths.push(rel.path)
 		} else {
@@ -29,96 +45,119 @@ export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Promise<s
 		}
 	})
 
-	// C: Read/Encode each unique audio/image/video path
+	// STEP 4: Read/Encode each unique media item
 	candidateRels
 		.filter(rel => !rel.isDuplicate)
 		.forEach(rel => {
 			imageProms.push(
-				new Promise((resolve, reject) => {
-					if (fs && rel.path.indexOf('http') !== 0) {
-						// DESIGN: Node local-file encoding is syncronous, so we can load all images here, then call export with a callback (if any)
+				(async () => {
+					if (!https) await loadNodeDeps()
+
+					// ────────────  NODE LOCAL FILE  ────────────
+					if (isNode && fs && rel.path.indexOf('http') !== 0) {
 						try {
-							let bitmap = fs.readFileSync(rel.path)
+							const bitmap = fs.readFileSync(rel.path)
 							rel.data = Buffer.from(bitmap).toString('base64')
-							candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
-							resolve('done')
+							candidateRels
+								.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+								.forEach(dupe => (dupe.data = rel.data))
+							return 'done'
 						} catch (ex) {
 							rel.data = IMG_BROKEN
-							candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
-							reject('ERROR: Unable to read media: "' + rel.path + '"\n' + ex.toString())
+							candidateRels
+								.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+								.forEach(dupe => (dupe.data = rel.data))
+							throw new Error(`ERROR: Unable to read media: "${rel.path}"\n${String(ex)}`)
 						}
-					} else if (fs && https && rel.path.indexOf('http') === 0) {
-						const request = https.get(rel.path, (res: any) => {
-							let rawData = ''
-							res.setEncoding('binary') // IMPORTANT: Only binary encoding works
-							res.on('data', (chunk: string) => (rawData += chunk))
-							res.on('end', () => {
-								rel.data = Buffer.from(rawData, 'binary').toString('base64')
-								candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
-								resolve('done')
+					}
+
+					// ────────────  NODE HTTP(S)  ────────────
+					if (isNode && https && rel.path.startsWith('http')) {
+						return await new Promise<string>((resolve, reject) => {
+							const request = https.get(rel.path, res => {
+								let raw = ''
+								res.setEncoding('binary') // IMPORTANT: Only binary encoding works
+								res.on('data', chunk => (raw += chunk))
+								res.on('end', () => {
+									rel.data = Buffer.from(raw, 'binary').toString('base64')
+									candidateRels
+										.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+										.forEach(dupe => (dupe.data = rel.data))
+									resolve('done')
+								})
+								res.on('error', () => {
+									rel.data = IMG_BROKEN
+									candidateRels
+										.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+										.forEach(dupe => (dupe.data = rel.data))
+									reject(new Error(`ERROR! Unable to load image (https.get): ${rel.path}`))
+								})
 							})
-							res.on('error', (_ex: any) => {
+							// request-level errors (DNS failure, refused connection, ...) emit on the request,
+							// not the response - without this handler they crash the node process
+							request.on('error', ex => {
 								rel.data = IMG_BROKEN
-								candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
-								reject(`ERROR! Unable to load image (https.get): ${rel.path}`)
+								candidateRels
+									.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+									.forEach(dupe => (dupe.data = rel.data))
+								reject(new Error(`ERROR! Unable to load image (https.get): ${rel.path} | ex: ${String(ex)}`))
 							})
 						})
-						// request-level errors (DNS failure, refused connection, ...) emit on the request,
-						// not the response - without this handler they crash the node process
-						request.on('error', (ex: any) => {
-							rel.data = IMG_BROKEN
-							candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
-							reject(`ERROR! Unable to load image (https.get): ${rel.path} | ex: ${ex}`)
-						})
-					} else {
-						// A: Declare XHR and onload/onerror handlers
-						// DESIGN: `XMLHttpRequest()` plus `FileReader()` = Ablity to read any file into base64!
-						let xhr = new XMLHttpRequest()
+					}
+
+					// ────────────  BROWSER  ────────────
+					return await new Promise<string>((resolve, reject) => {
+						// A: build request
+						const xhr = new XMLHttpRequest()
 						xhr.onload = () => {
-							let reader = new FileReader()
+							const reader = new FileReader()
 							reader.onloadend = () => {
-								rel.data = reader.result
-								candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
+								rel.data = reader.result as string
+								candidateRels
+									.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+									.forEach(dupe => (dupe.data = rel.data))
 								if (!rel.isSvgPng) {
 									resolve('done')
 								} else {
 									createSvgPngPreview(rel)
-										.then(() => {
-											resolve('done')
-										})
-										.catch(ex => {
-											reject(ex)
-										})
+										.then(() => resolve('done'))
+										.catch(reject)
 								}
 							}
 							reader.readAsDataURL(xhr.response)
 						}
 						xhr.onerror = ex => {
 							rel.data = IMG_BROKEN
-							candidateRels.filter(dupe => dupe.isDuplicate && dupe.path === rel.path).forEach(dupe => (dupe.data = rel.data))
-							reject(`ERROR! Unable to load image (xhr.onerror): ${rel.path} | ex: ${ex}`)
+							candidateRels
+								.filter(dupe => dupe.isDuplicate && dupe.path === rel.path)
+								.forEach(dupe => (dupe.data = rel.data))
+							reject(new Error(`ERROR! Unable to load image (xhr.onerror): ${rel.path} | ex: ${String(ex)}`))
 						}
-
-						// B: Execute request
+						// B: execute request
 						xhr.open('GET', rel.path)
 						xhr.responseType = 'blob'
 						xhr.send()
-					}
-				})
+					})
+				})(),
 			)
 		})
 
-	// B: SVG: base64 data still requires a png to be generated (`isSvgPng` flag this as the preview image, not the SVG itself)
+	// STEP 5: SVG-PNG previews
+	// ......: "SVG:" base64 data still requires a png to be generated
+	// ......: (`isSvgPng` flag this as the preview image, not the SVG itself)
 	layout._relsMedia
 		.filter(rel => rel.isSvgPng && rel.data)
 		.forEach(rel => {
-			if (fs) {
-				//console.log('Sorry, SVG is not supported in Node (more info: https://github.com/gitbrent/PptxGenJS/issues/401)')
-				rel.data = IMG_BROKEN
-				imageProms.push(Promise.resolve().then(() => 'done'))
-			} else {
-				imageProms.push(createSvgPngPreview(rel))
-			}
+			(async () => {
+				if (isNode && !fs) await loadNodeDeps()
+				if (isNode && fs) {
+					// console.log('Sorry, SVG is not supported in Node (more info: https://github.com/gitbrent/PptxGenJS/issues/401)')
+					rel.data = IMG_BROKEN
+					imageProms.push(Promise.resolve('done'))
+				} else {
+					imageProms.push(createSvgPngPreview(rel))
+				}
+			})()
 		})
 
 	return imageProms
@@ -129,10 +168,10 @@ export function encodeSlideMediaRels(layout: PresSlide | SlideLayout): Promise<s
  * @param {ISlideRelMedia} rel - slide rel
  * @return {Promise} promise
  */
-function createSvgPngPreview(rel: ISlideRelMedia): Promise<string> {
-	return new Promise((resolve, reject) => {
+async function createSvgPngPreview(rel: ISlideRelMedia): Promise<string> {
+	return await new Promise((resolve, reject) => {
 		// A: Create
-		let image = new Image()
+		const image = new Image()
 
 		// B: Set onload event
 		image.onload = () => {
@@ -141,7 +180,7 @@ function createSvgPngPreview(rel: ISlideRelMedia): Promise<string> {
 				image.onerror('h/w=0')
 			}
 			let canvas: HTMLCanvasElement = document.createElement('CANVAS') as HTMLCanvasElement
-			let ctx = canvas.getContext('2d')
+			const ctx = canvas.getContext('2d')
 			canvas.width = image.width
 			canvas.height = image.height
 			ctx.drawImage(image, 0, 0)
@@ -152,13 +191,13 @@ function createSvgPngPreview(rel: ISlideRelMedia): Promise<string> {
 				rel.data = canvas.toDataURL(rel.type)
 				resolve('done')
 			} catch (ex) {
-				image.onerror(ex)
+				image.onerror(ex.toString())
 			}
 			canvas = null
 		}
 		image.onerror = ex => {
 			rel.data = IMG_BROKEN
-			reject(`ERROR! Unable to load image (image.onerror): ${rel.path} | ex: ${ex}`)
+			reject(new Error(`ERROR! Unable to load image (image.onerror): ${rel.path} | ex: ${String(ex)}`))
 		}
 
 		// C: Load image
@@ -170,12 +209,13 @@ function createSvgPngPreview(rel: ISlideRelMedia): Promise<string> {
  * FIXME: TODO: currently unused
  * TODO: Should return a Promise
  */
-function getSizeFromImage(inImgUrl: string): { width: number; height: number } {
+/*
+function getSizeFromImage (inImgUrl: string): { width: number, height: number } {
 	const sizeOf = typeof require !== 'undefined' ? require('sizeof') : null // NodeJS
 
 	if (sizeOf) {
 		try {
-			let dimensions = sizeOf(inImgUrl)
+			const dimensions = sizeOf(inImgUrl)
 			return { width: dimensions.width, height: dimensions.height }
 		} catch (ex) {
 			console.error('ERROR: sizeOf: Unable to load image: ' + inImgUrl)
@@ -183,7 +223,7 @@ function getSizeFromImage(inImgUrl: string): { width: number; height: number } {
 		}
 	} else if (Image && typeof Image === 'function') {
 		// A: Create
-		let image = new Image()
+		const image = new Image()
 
 		// B: Set onload event
 		image.onload = () => {
@@ -191,10 +231,10 @@ function getSizeFromImage(inImgUrl: string): { width: number; height: number } {
 			if (image.width + image.height === 0) {
 				return { width: 0, height: 0 }
 			}
-			let obj = { width: image.width, height: image.height }
+			const obj = { width: image.width, height: image.height }
 			return obj
 		}
-		image.onerror = () => {
+		image.onerror = ex => {
 			console.error(`ERROR: image.onload: Unable to load image: ${inImgUrl}`)
 		}
 
@@ -202,3 +242,4 @@ function getSizeFromImage(inImgUrl: string): { width: number; height: number } {
 		image.src = inImgUrl
 	}
 }
+*/

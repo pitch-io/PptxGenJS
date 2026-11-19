@@ -1,4 +1,4 @@
-// Type definitions for pptxgenjs 3.11.0
+// Type definitions for pptxgenjs 4.0.1
 // Project: https://gitbrent.github.io/PptxGenJS/
 // Definitions by: Brent Ely <https://github.com/gitbrent/>
 //                 Michael Beaumont <https://github.com/michaelbeaumont>
@@ -72,6 +72,11 @@ declare class PptxGenJS {
 	 * @type {string}
 	 */
 	subject: string
+	/**
+	 * Presentation theme (default fonts)
+	 * @type {ThemeProps}
+	 */
+	theme: PptxGenJS.ThemeProps
 	/**
 	 * Presentation name
 	 * @type {string}
@@ -512,10 +517,10 @@ declare namespace PptxGenJS {
 		LINE_CALLOUT_3_ACCENT_BAR = 'accentCallout3',
 		LINE_CALLOUT_3_BORDER_AND_ACCENT_BAR = 'accentBorderCallout3',
 		LINE_CALLOUT_3_NO_BORDER = 'callout3',
-		LINE_CALLOUT_4 = 'borderCallout3',
-		LINE_CALLOUT_4_ACCENT_BAR = 'accentCallout3',
-		LINE_CALLOUT_4_BORDER_AND_ACCENT_BAR = 'accentBorderCallout3',
-		LINE_CALLOUT_4_NO_BORDER = 'callout3',
+		LINE_CALLOUT_4 = 'borderCallout4',
+		LINE_CALLOUT_4_ACCENT_BAR = 'accentCallout4',
+		LINE_CALLOUT_4_BORDER_AND_ACCENT_BAR = 'accentBorderCallout4',
+		LINE_CALLOUT_4_NO_BORDER = 'callout4',
 		LINE = 'line',
 		LINE_INVERSE = 'lineInv',
 		MATH_DIVIDE = 'mathDivide',
@@ -611,7 +616,7 @@ declare namespace PptxGenJS {
 	}
 
 	// @source `core-interfaces.d.ts` (via import)
-	// @code `import { CHART_NAME, PLACEHOLDER_TYPES, SHAPE_NAME, SLIDE_OBJECT_TYPES, TEXT_HALIGN, TEXT_VALIGN } from './core-enums'`
+	// @code `import { CHART_NAME, PLACEHOLDER_TYPES, SHAPE_NAME, SLIDE_OBJECT_TYPES, TEXT_HALIGN, TEXT_VALIGN, WRITE_OUTPUT_TYPE } from './core-enums'`
 	export type CHART_NAME = 'area' | 'bar' | 'bar3D' | 'bubble' | 'doughnut' | 'line' | 'pie' | 'radar' | 'scatter'
 	export enum PLACEHOLDER_TYPES {
 		'title' = 'title',
@@ -840,7 +845,7 @@ declare namespace PptxGenJS {
 	 * @example '75%' // coordinate as percentage of slide size
 	 */
 	export type Coord = number | `${number}%`
-	export type PositionProps = {
+	export interface PositionProps {
 		/**
 		 * Horizontal position
 		 * - inches or percentage
@@ -873,7 +878,7 @@ declare namespace PptxGenJS {
 	/**
 	 * Either `data` or `path` is required
 	 */
-	export type DataOrPathProps = {
+	export interface DataOrPathProps {
 		/**
 		 * URL or relative path
 		 *
@@ -895,6 +900,12 @@ declare namespace PptxGenJS {
 		 * @deprecated v3.6.0 - use `ShapeFillProps` instead
 		 */
 		fill?: HexColor
+
+		/**
+		 * source URL
+		 * @deprecated v3.6.0 - use `DataOrPathProps` instead - remove in v4.0.0
+		 */
+		src?: string
 	}
 	/**
 	 * Color in Hex format
@@ -921,6 +932,8 @@ declare namespace PptxGenJS {
 		 */
 		color?: HexColor
 
+		// TODO: add `transparency` prop to Borders (0-100%)
+
 		// TODO: add `width` - deprecate `pt`
 		/**
 		 * Border size (points)
@@ -944,7 +957,7 @@ declare namespace PptxGenJS {
 		 */
 		tooltip?: string
 	}
-	// used by: chart, text
+	// used by: chart, text, image
 	export interface ShadowProps {
 		/**
 		 * shadow type
@@ -980,6 +993,11 @@ declare namespace PptxGenJS {
 		 * @example 'FF3399'
 		 */
 		color?: HexColor
+		/**
+		 * whether to rotate shadow with shape
+		 * @default false
+		 */
+		rotateWithShape?: boolean
 	}
 	// used by: shape, table, text
 	export interface ShapeFillProps {
@@ -1081,80 +1099,80 @@ declare namespace PptxGenJS {
 		 * @default false
 		 */
 		bullet?:
-			| boolean
-			| {
-					/**
-					 * Bullet type
-					 * @default bullet
-					 */
-					type?: 'bullet' | 'number'
-					/**
-					 * Bullet character code (unicode)
-					 * @since v3.3.0
-					 * @example '25BA' // 'BLACK RIGHT-POINTING POINTER' (U+25BA)
-					 */
-					characterCode?: string
-					/**
-					 * Indentation (space between bullet and text) (points)
-					 * @since v3.3.0
-					 * @default 27 // DEF_BULLET_MARGIN
-					 * @example 10 // Indents text 10 points from bullet
-					 */
-					indent?: number
-					/**
-					 * Number type
-					 * @since v3.3.0
-					 * @example 'romanLcParenR' // roman numerals lower-case with paranthesis right
-					 */
-					numberType?:
-						| 'alphaLcParenBoth'
-						| 'alphaLcParenR'
-						| 'alphaLcPeriod'
-						| 'alphaUcParenBoth'
-						| 'alphaUcParenR'
-						| 'alphaUcPeriod'
-						| 'arabicParenBoth'
-						| 'arabicParenR'
-						| 'arabicPeriod'
-						| 'arabicPlain'
-						| 'romanLcParenBoth'
-						| 'romanLcParenR'
-						| 'romanLcPeriod'
-						| 'romanUcParenBoth'
-						| 'romanUcParenR'
-						| 'romanUcPeriod'
-					/**
-					 * Number bullets start at
-					 * @since v3.3.0
-					 * @default 1
-					 * @example 10 // numbered bullets start with 10
-					 */
-					numberStartAt?: number
+		| boolean
+		| {
+			/**
+			 * Bullet type
+			 * @default bullet
+			 */
+			type?: 'bullet' | 'number'
+			/**
+			 * Bullet character code (unicode)
+			 * @since v3.3.0
+			 * @example '25BA' // 'BLACK RIGHT-POINTING POINTER' (U+25BA)
+			 */
+			characterCode?: string
+			/**
+			 * Indentation (space between bullet and text) (points)
+			 * @since v3.3.0
+			 * @default 27 // DEF_BULLET_MARGIN
+			 * @example 10 // Indents text 10 points from bullet
+			 */
+			indent?: number
+			/**
+			 * Number type
+			 * @since v3.3.0
+			 * @example 'romanLcParenR' // roman numerals lower-case with paranthesis right
+			 */
+			numberType?:
+			| 'alphaLcParenBoth'
+			| 'alphaLcParenR'
+			| 'alphaLcPeriod'
+			| 'alphaUcParenBoth'
+			| 'alphaUcParenR'
+			| 'alphaUcPeriod'
+			| 'arabicParenBoth'
+			| 'arabicParenR'
+			| 'arabicPeriod'
+			| 'arabicPlain'
+			| 'romanLcParenBoth'
+			| 'romanLcParenR'
+			| 'romanLcPeriod'
+			| 'romanUcParenBoth'
+			| 'romanUcParenR'
+			| 'romanUcPeriod'
+			/**
+			 * Number bullets start at
+			 * @since v3.3.0
+			 * @default 1
+			 * @example 10 // numbered bullets start with 10
+			 */
+			numberStartAt?: number
 
-					// DEPRECATED
+			// DEPRECATED
 
-					/**
-					 * Bullet code (unicode)
-					 * @deprecated v3.3.0 - use `characterCode`
-					 */
-					code?: string
-					/**
-					 * Margin between bullet and text
-					 * @since v3.2.1
-					 * @deplrecated v3.3.0 - use `indent`
-					 */
-					marginPt?: number
-					/**
-					 * Number to start with (only applies to type:number)
-					 * @deprecated v3.3.0 - use `numberStartAt`
-					 */
-					startAt?: number
-					/**
-					 * Number type
-					 * @deprecated v3.3.0 - use `numberType`
-					 */
-					style?: string
-			  }
+			/**
+			 * Bullet code (unicode)
+			 * @deprecated v3.3.0 - use `characterCode`
+			 */
+			code?: string
+			/**
+			 * Margin between bullet and text
+			 * @since v3.2.1
+			 * @deplrecated v3.3.0 - use `indent`
+			 */
+			marginPt?: number
+			/**
+			 * Number to start with (only applies to type:number)
+			 * @deprecated v3.3.0 - use `numberStartAt`
+			 */
+			startAt?: number
+			/**
+			 * Number type
+			 * @deprecated v3.3.0 - use `numberType`
+			 */
+			style?: string
+		}
 		/**
 		 * Text color
 		 * - `HexColor` or `ThemeColor`
@@ -1201,7 +1219,16 @@ declare namespace PptxGenJS {
 		 * - PowerPoint: Paragraph > Tabs > Tab stop position
 		 * @example [{ position:1 }, { position:3 }] // Set first tab stop to 1 inch, set second tab stop to 3 inches
 		 */
-		tabStops?: { position: number; alignment?: 'l' | 'r' | 'ctr' | 'dec' }[]
+		tabStops?: Array<{ position: number, alignment?: 'l' | 'r' | 'ctr' | 'dec' }>
+		/**
+		 * text direction
+		 * `horz` = horizontal
+		 * `vert` = rotate 90^
+		 * `vert270` = rotate 270^
+		 * `wordArtVert` = stacked
+		 * @default 'horz'
+		 */
+		textDirection?: 'horz' | 'vert' | 'vert270' | 'wordArtVert'
 		/**
 		 * Transparency (percent)
 		 * - MS-PPT > Format Shape > Text Options > Text Fill & Outline > Text Fill > Transparency
@@ -1216,23 +1243,23 @@ declare namespace PptxGenJS {
 		 */
 		underline?: {
 			style?:
-				| 'dash'
-				| 'dashHeavy'
-				| 'dashLong'
-				| 'dashLongHeavy'
-				| 'dbl'
-				| 'dotDash'
-				| 'dotDashHeave'
-				| 'dotDotDash'
-				| 'dotDotDashHeavy'
-				| 'dotted'
-				| 'dottedHeavy'
-				| 'heavy'
-				| 'none'
-				| 'sng'
-				| 'wavy'
-				| 'wavyDbl'
-				| 'wavyHeavy'
+			| 'dash'
+			| 'dashHeavy'
+			| 'dashLong'
+			| 'dashLongHeavy'
+			| 'dbl'
+			| 'dotDash'
+			| 'dotDashHeave'
+			| 'dotDotDash'
+			| 'dotDotDashHeavy'
+			| 'dotted'
+			| 'dottedHeavy'
+			| 'heavy'
+			| 'none'
+			| 'sng'
+			| 'wavy'
+			| 'wavyDbl'
+			| 'wavyHeavy'
 			color?: Color
 		}
 		/**
@@ -1249,7 +1276,7 @@ declare namespace PptxGenJS {
 		 */
 		margin?: Margin
 	}
-	export type ObjectNameProps = {
+	export interface ObjectNameProps {
 		/**
 		 * Object name
 		 * - used instead of default "Object N" name
@@ -1259,6 +1286,20 @@ declare namespace PptxGenJS {
 		 * @example 'Antenna Design 9'
 		 */
 		objectName?: string
+	}
+	export interface ThemeProps {
+		/**
+		 * Headings font face name
+		 * @example 'Arial Narrow'
+		 * @default 'Calibri Light'
+		 */
+		headFontFace?: string
+		/**
+		 * Body font face name
+		 * @example 'Arial'
+		 * @default 'Calibri'
+		 */
+		bodyFontFace?: string
 	}
 
 	// image / media ==================================================================================
@@ -1300,6 +1341,13 @@ declare namespace PptxGenJS {
 		 * @default false
 		 */
 		rounding?: boolean
+		/**
+		 * Shadow Props
+		 * - MS-PPT > Format Picture > Shadow
+		 * @example
+		 * { type: 'outer', color: '000000', opacity: 0.5, blur: 20,  offset: 20, angle: 270 }
+		 */
+		shadow?: ShadowProps
 		/**
 		 * Image sizing options
 		 */
@@ -1414,7 +1462,7 @@ declare namespace PptxGenJS {
 		 * Shape fill color properties
 		 * @example { color:'FF0000' } // hex color (red)
 		 * @example { color:'0088CC', transparency:50 } // hex color, 50% transparent
-		 * @example { color:pptx.SchemeColor.accent1 } // theme color Accent1
+		 * @example { color:pptx.SchemeColor.accent1 } // Theme color Accent1
 		 */
 		fill?: ShapeFillProps
 		/**
@@ -1447,10 +1495,10 @@ declare namespace PptxGenJS {
 		 * @example [{ x: 0, y: 0 }, { x: 10, y: 10 }] // draw a line between those two points
 		 */
 		points?: Array<
-			| { x: Coord; y: Coord; moveTo?: boolean }
-			| { x: Coord; y: Coord; curve: { type: 'arc'; hR: Coord; wR: Coord; stAng: number; swAng: number } }
-			| { x: Coord; y: Coord; curve: { type: 'cubic'; x1: Coord; y1: Coord; x2: Coord; y2: Coord } }
-			| { x: Coord; y: Coord; curve: { type: 'quadratic'; x1: Coord; y1: Coord } }
+			| { x: Coord, y: Coord, moveTo?: boolean }
+			| { x: Coord, y: Coord, curve: { type: 'arc', hR: Coord, wR: Coord, stAng: number, swAng: number } }
+			| { x: Coord, y: Coord, curve: { type: 'cubic', x1: Coord, y1: Coord, x2: Coord, y2: Coord } }
+			| { x: Coord, y: Coord, curve: { type: 'quadratic', x1: Coord, y1: Coord } }
 			| { close: true }
 		>
 		/**
@@ -1499,7 +1547,7 @@ declare namespace PptxGenJS {
 
 	export interface TableToSlidesProps extends TableProps {
 		//_arrObjTabHeadRows?: TableRow[]
-		//_masterSlide?: SlideLayout
+		// _masterSlide?: SlideLayout
 
 		/**
 		 * Add an image to slide(s) created during autopaging
@@ -1507,19 +1555,19 @@ declare namespace PptxGenJS {
 		 * - see `DataOrPathProps` for details on `image` props
 		 * - see `PositionProps` for details on `options` props
 		 */
-		addImage?: { image: DataOrPathProps; options: PositionProps }
+		addImage?: { image: DataOrPathProps, options: PositionProps }
 		/**
 		 * Add a shape to slide(s) created during autopaging
 		 */
-		addShape?: { shape: any; options: {} }
+		addShape?: { shapeName: SHAPE_NAME, options: ShapeProps }
 		/**
 		 * Add a table to slide(s) created during autopaging
 		 */
-		addTable?: { rows: any[]; options: {} }
+		addTable?: { rows: TableRow[], options: TableProps }
 		/**
 		 * Add a text object to slide(s) created during autopaging
 		 */
-		addText?: { text: any[]; options: {} }
+		addText?: { text: TextProps[], options: TextPropsOptions }
 		/**
 		 * Whether to enable auto-paging
 		 * - auto-paging creates new slides as content overflows a slide
@@ -1812,7 +1860,7 @@ declare namespace PptxGenJS {
 		 * @example [10,5,10,5] // Top margin 10, Right margin 5, Bottom margin 10, Left margin 5
 		 */
 		margin?: Margin
-		outline?: { color: Color; size: number }
+		outline?: { color: Color, size: number }
 		paraSpaceAfter?: number
 		paraSpaceBefore?: number
 		placeholder?: string
@@ -1901,7 +1949,11 @@ declare namespace PptxGenJS {
 	*/
 
 	export type ChartAxisTickMark = 'none' | 'inside' | 'outside' | 'cross'
+	export type ChartLineCap = 'flat' | 'round' | 'square'
+
 	export interface OptsChartData {
+		//_dataIndex?: number
+
 		/**
 		 * category labels
 		 * @example ['Year 2000', 'Year 2010', 'Year 2020'] // single-level category axes labels
@@ -1931,6 +1983,12 @@ declare namespace PptxGenJS {
 	}
 	export interface OptsChartGridLine {
 		/**
+		 * MS-PPT > Chart format > Format Major Gridlines > Line > Cap type
+		 * - line cap type
+		 * @default flat
+		 */
+		cap?: ChartLineCap
+		/**
 		 * Gridline color (hex)
 		 * @example 'FF3399'
 		 */
@@ -1947,8 +2005,8 @@ declare namespace PptxGenJS {
 	// TODO: 202008: chart types remain with predicated with "I" in v3.3.0 (ran out of time!)
 	export interface IChartMulti {
 		type: CHART_NAME
-		data: any[]
-		options: {}
+		data: OptsChartData[]
+		options: IChartOpts
 	}
 	export interface IChartPropsFillLine {
 		/**
@@ -1990,20 +2048,57 @@ declare namespace PptxGenJS {
 		lang?: string
 		layout?: PositionProps
 		shadow?: ShadowProps
+		/**
+		 * @default false
+		 */
 		showLabel?: boolean
 		showLeaderLines?: boolean
+		/**
+		 * @default false
+		 */
 		showLegend?: boolean
+		/**
+		 * @default false
+		 */
 		showPercent?: boolean
+		/**
+		 * @default false
+		 */
+		showSerName?: boolean
+		/**
+		 * @default false
+		 */
 		showTitle?: boolean
+		/**
+		 * @default false
+		 */
 		showValue?: boolean
 		/**
-		 * 3D perspecitve
-		 * - range: 0-100
+		 * 3D Perspecitve
+		 * - range: 0-120
 		 * @default 30
 		 */
 		v3DPerspective?: number
+		/**
+		 * Right Angle Axes
+		 * - Shows chart from first-person perspective
+		 * - Overrides `v3DPerspective` when true
+		 * - PowerPoint: Chart Options > 3-D Rotation
+		 * @default false
+		 */
 		v3DRAngAx?: boolean
+		/**
+		 * X Rotation
+		 * - PowerPoint: Chart Options > 3-D Rotation
+		 * - range: 0-359.9
+		 * @default 30
+		 */
 		v3DRotX?: number
+		/**
+		 * Y Rotation
+		 * - range: 0-359.9
+		 * @default 30
+		 */
 		v3DRotY?: number
 
 		/**
@@ -2052,8 +2147,10 @@ declare namespace PptxGenJS {
 		catAxisMaxVal?: number
 		catAxisMinorTickMark?: ChartAxisTickMark
 		catAxisMinorTimeUnit?: string
-		catAxisMinorUnit?: string
+		catAxisMinorUnit?: number
 		catAxisMinVal?: number
+		/** @since v3.11.0 */
+		catAxisMultiLevelLabels?: boolean
 		catAxisOrientation?: 'minMax'
 		catAxisTitle?: string
 		catAxisTitleColor?: string
@@ -2176,6 +2273,17 @@ declare namespace PptxGenJS {
 		holeSize?: number
 	}
 	export interface IChartPropsChartLine {
+		/**
+		 * MS-PPT > Chart format > Format Data Series > Line > Cap type
+		 * - line cap type
+		 * @default flat
+		 */
+		lineCap?: ChartLineCap
+		/**
+		 * MS-PPT > Chart format > Format Data Series > Marker Options > Built-in > Type
+		 * - line dash type
+		 * @default solid
+		 */
 		lineDash?: 'dash' | 'dashDot' | 'lgDash' | 'lgDashDot' | 'lgDashDotDot' | 'solid' | 'sysDash' | 'sysDot'
 		/**
 		 * MS-PPT > Chart format > Format Data Series > Marker Options > Built-in > Type
@@ -2262,6 +2370,10 @@ declare namespace PptxGenJS {
 		 * @example '$0.00' // shows values as '$0.00'
 		 */
 		dataTableFormatCode?: string
+		/**
+		 * Whether to show a data table adjacent to the chart
+		 * @default false
+		 */
 		showDataTable?: boolean
 		showDataTableHorzBorder?: boolean
 		showDataTableKeys?: boolean
@@ -2281,26 +2393,26 @@ declare namespace PptxGenJS {
 		titleColor?: string
 		titleFontFace?: string
 		titleFontSize?: number
-		titlePos?: { x: number; y: number }
+		titlePos?: { x: number, y: number }
 		titleRotate?: number
 	}
 	export interface IChartOpts
 		extends IChartPropsAxisCat,
-			IChartPropsAxisSer,
-			IChartPropsAxisVal,
-			IChartPropsBase,
-			IChartPropsChartBar,
-			IChartPropsChartDoughnut,
-			IChartPropsChartLine,
-			IChartPropsChartPie,
-			IChartPropsChartRadar,
-			IChartPropsDataLabel,
-			IChartPropsDataTable,
-			IChartPropsLegend,
-			IChartPropsTitle,
-			OptsChartGridLine,
-			PositionProps,
-			ObjectNameProps {
+		IChartPropsAxisSer,
+		IChartPropsAxisVal,
+		IChartPropsBase,
+		IChartPropsChartBar,
+		IChartPropsChartDoughnut,
+		IChartPropsChartLine,
+		IChartPropsChartPie,
+		IChartPropsChartRadar,
+		IChartPropsDataLabel,
+		IChartPropsDataTable,
+		IChartPropsLegend,
+		IChartPropsTitle,
+		ObjectNameProps,
+		OptsChartGridLine,
+		PositionProps {
 		/**
 		 * Alt Text value ("How would you describe this object and its contents to someone who is blind?")
 		 * - PowerPoint: [right-click on a chart] > "Edit Alt Text..."
@@ -2383,23 +2495,21 @@ declare namespace PptxGenJS {
 		background?: BackgroundProps
 		margin?: Margin
 		slideNumber?: SlideNumberProps
-		objects?: (
-			| { chart: {} }
-			| { image: {} }
-			| { line: {} }
-			| { rect: {} }
+		objects?: Array<| { chart: IChartOpts }
+			| { image: ImageProps }
+			| { line: ShapeProps }
+			| { rect: ShapeProps }
 			| { text: TextProps }
 			| {
-					placeholder: {
-						options: PlaceholderProps
-						/**
-						 * Text to be shown in placeholder (shown until user focuses textbox or adds text)
-						 * - Leave blank to have powerpoint show default phrase (ex: "Click to add title")
-						 */
-						text?: string
-					}
-			  }
-		)[]
+				placeholder: {
+					options: PlaceholderProps
+					/**
+					 * Text to be shown in placeholder (shown until user focuses textbox or adds text)
+					 * - Leave blank to have powerpoint show default phrase (ex: "Click to add title")
+					 */
+					text?: string
+				}
+			}>
 
 		/**
 		 * @deprecated v3.3.0 - use `background`
@@ -2472,6 +2582,7 @@ declare namespace PptxGenJS {
 		 */
 		rtlMode: boolean
 		subject: string
+		theme: ThemeProps
 		title: string
 	}
 
@@ -2505,6 +2616,10 @@ declare namespace PptxGenJS {
 		 * Slide number options
 		 */
 		slideNumber: SlideNumberProps
+		/**
+		 * New slides added by an auto paged table
+		 */
+		newAutoPagedSlides: PresSlide[]
 		/**
 		 * Add chart to Slide
 		 * @param {CHART_NAME|IChartMulti[]} type - chart type

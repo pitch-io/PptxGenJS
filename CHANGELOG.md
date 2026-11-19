@@ -2,18 +2,87 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Notes]
+## [4.0.1](https://github.com/gitbrent/PptxGenJS/releases/tag/v4.0.1) - 2025-06-25
 
-## [3.11.0] - 2022-0?-0?
+### Fixed
+
+- Border is a string instead of a number in demo_tables.mjs [\#1389](https://github.com/gitbrent/PptxGenJS/issues/1389) ([hesi726](https://github.com/hesi726))
+- Fixed support for Scheme Colors as `dataBorder` [\#1389](https://github.com/gitbrent/PptxGenJS/issues/1389) ([hesi726](https://github.com/hesi726))
+- Hyperlinks cause "needs repair" when using table auto-paging [\#1392](https://github.com/gitbrent/PptxGenJS/issues/1392) ([gitbrent](https://github.com/gitbrent))
+
+### Changed
+
+- Removed "node:fs/promises" from `package.json` browser field ([gitbrent](https://github.com/gitbrent))
+- Updated image-size to v1.2.1 [\#1387](https://github.com/gitbrent/PptxGenJS/pull/1387) ([znew711](https://github.com/znew711))
+
+## [4.0.0](https://github.com/gitbrent/PptxGenJS/releases/tag/v4.0.0) - 2025-05-04
+
+### Fixed
+
+- defineSlideMaster() issues when reusing config object [\#406](https://github.com/gitbrent/PptxGenJS/issues/406) ([ronnyroeller](https://github.com/ronnyroeller))
+- Fixed "needs repair" issue with table auto-paging [\#1380](https://github.com/gitbrent/PptxGenJS/issues/1380) ([gitbrent](https://github.com/gitbrent))
+
+### Added
+
+- Added `textDirection` property for text and table cells to allow vertical rotation of text ([gitbrent](https://github.com/gitbrent))
+
+### Changed
+
+- Bump jszip to ^3.10.1 [\#1255](https://github.com/gitbrent/PptxGenJS/pull/1255) ([NateRadebaugh](https://github.com/NateRadebaugh))
+- Added `exports` field to package.json to enable modern module resolution ([gitbrent](https://github.com/gitbrent))
+- Brand new logic for detecting Node.js ([gitbrent](https://github.com/gitbrent)) this fixes: Vite issues [\#1325](https://github.com/gitbrent/PptxGenJS/issues/1325) and Web Worker issues [\#1354](https://github.com/gitbrent/PptxGenJS/issues/1354)
+
+### Deps, Demos, Tools, and Docs
+
+- Added new vite-demo under "demos" to test using the library as a module in modern apps (replaces react-demo) ([gitbrent](https://github.com/gitbrent))
+- Major updates to dev dependencies (typescript, rollup, eslint, gulp) ([gitbrent](https://github.com/gitbrent))
+- Brand new eslint.config.js ([gitbrent](https://github.com/gitbrent))
+- Updated rollup.config.mjs ([gitbrent](https://github.com/gitbrent))
+- Brand new Vite demo replaces broken CRA react-demo ([gitbrent](https://github.com/gitbrent))
+- Brand new WebWorker demo ([gitbrent](https://github.com/gitbrent))
+- Major update to README ([gitbrent](https://github.com/gitbrent))
+- New TESTING.md document created, renamed RELEASES.md to RELEASING.md ([gitbrent](https://github.com/gitbrent))
+- Major update to browser demo page ([gitbrent](https://github.com/gitbrent))
+- Major update to GitHub pages doc site ([gitbrent](https://github.com/gitbrent))
+- Updated Data2Slides tool to modern bootstrap ([gitbrent](https://github.com/gitbrent))
+
+### Removed
+
+- Removed `react-demo` under demos ([gitbrent](https://github.com/gitbrent))
+
+## [3.12.0](https://github.com/gitbrent/PptxGenJS/releases/tag/v3.12.0) - 2023-03-19
+
+### Added
+
+- Added selecting round or square line cap on line charts [\#1126](https://github.com/gitbrent/PptxGenJS/pull/1126) ([mathbruyen](https://github.com/mathbruyen))
+- Added `newAutoPagedSlides` method to `slide` (resolves issue #625) [\#1133](https://github.com/gitbrent/PptxGenJS/pull/1133) ([mikemeerschaert](https://github.com/mikemeerschaert))
+- Added optional image shadow props [\#1147](https://github.com/gitbrent/PptxGenJS/pull/1147) ([seekuehe](https://github.com/seekuehe))
+- Added ability to set default fontFace [\#1158](https://github.com/gitbrent/PptxGenJS/issues/1158) ([matt88120](https://github.com/matt88120))
+
+### Fixed
+
+- Fixed `autoPage` duplicates text when text array is used [\#1139](https://github.com/gitbrent/PptxGenJS/issues/1139) ([mikemeerschaert](https://github.com/mikemeerschaert))
+- PowerPoint shows the "repair" dialog when adding an SVG image to a slide master [\#1150](https://github.com/gitbrent/PptxGenJS/issues/1150) ([BenHall-1](https://github.com/BenHall-1))
+- Fixed gh-pages text api docs: transparency + wrap [\#1153](https://github.com/gitbrent/PptxGenJS/pull/1153) ([tjinauyeung](https://github.com/tjinauyeung))
+- Fixed YouTube videos not working [\#1156](https://github.com/gitbrent/PptxGenJS/issues/1156) ([gitbrent](https://github.com/gitbrent))
+- Fixed handle `holeSize=0` for doughnut chart [\#1180](https://github.com/gitbrent/PptxGenJS/pull/1180) ([mathbruyen](https://github.com/mathbruyen))
+- Fixed 3D chart options not working correctly (and updated demo) ([gitbrent](https://github.com/gitbrent))
+
+### Changed
+
+- (Internal) migrate library from tslint to eslint [\#1155](https://github.com/gitbrent/PptxGenJS/pull/1155) ([gitbrent](https://github.com/gitbrent))
+
+## [3.11.0] - 2022-08-06
 
 ### Added
 
 - Added category crosses at property (`catAxisCrossesAt`) [\#966](https://github.com/gitbrent/PptxGenJS/pull/966) ([parvezapathan](https://github.com/parvezapathan))
 - Added support for multi-level category axes [\#1012](https://github.com/gitbrent/PptxGenJS/pull/1012) ([MariusOpeepl](https://github.com/MariusOpeepl))
 - Added 2 new Chart props: `plotArea` and `chartArea` allowing fill and border for each (`plotArea` deprecates `fill` and `border`) [\#1015](https://github.com/gitbrent/PptxGenJS/issues/1015) ([hvstaden](https://github.com/hvstaden))
+- Added serie name on bubble chart, category axis position, leader lines on bubble chart [\#1100](https://github.com/gitbrent/PptxGenJS/pull/1100) ([mathbruyen](https://github.com/mathbruyen))
 - Added `bubble3D` chart type [\#1108](https://github.com/gitbrent/PptxGenJS/pull/1108) ([mathbruyen](https://github.com/mathbruyen))
 - Added new tool under demos: `data_convert` which turns Excel (tab-delim) data to chart data type easily ([gitbrent](https://github.com/gitbrent))
 
@@ -447,7 +516,7 @@ Comprehensive Pull
 
 - New Feature: Placeholders
 - New Feature: Speaker Notes
-- `addImage()` can now load both local ("../img.png") and remote images ("https://wikimedia.org/logo.jpg")
+- `addImage()` can now load both local ("../img.png") and remote images ("<https://wikimedia.org/logo.jpg>")
 - Typescript definitions are now available
 - `jquery-node` replaced with latest `jquery` package [only affects npm users]
 

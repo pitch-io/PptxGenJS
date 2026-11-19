@@ -20,7 +20,7 @@ const loadFontStyle = (style: PresFontStyle): Promise<string> =>
 			reader.readAsDataURL(xhr.response)
 		}
 
-		xhr.onerror = ex => {
+		xhr.onerror = () => {
 			reject(`ERROR! Unable to load font (xhr.onerror): ${style.path}`)
 		}
 
